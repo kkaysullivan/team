@@ -11,50 +11,56 @@ interface Preference {
   display_order: number;
 }
 
+interface PreferenceType {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  display_order: number;
+  is_active: boolean;
+}
+
 interface PreferencesProps {
   teamMemberId: string;
 }
 
-const defaultCategories = [
-  { name: 'Drink', icon: '☕', color: 'from-amber-50 to-orange-50 border-amber-200' },
-  { name: 'Color', icon: '🎨', color: 'from-pink-50 to-rose-50 border-pink-200' },
-  { name: 'Restaurant', icon: '🍽️', color: 'from-red-50 to-orange-50 border-red-200' },
-  { name: 'Book Genre', icon: '📚', color: 'from-blue-50 to-indigo-50 border-blue-200' },
-  { name: 'Music Genre', icon: '🎵', color: 'from-cyan-50 to-sky-50 border-cyan-200' },
-  { name: 'Hobbies', icon: '🎯', color: 'from-green-50 to-emerald-50 border-green-200' },
-  { name: 'Candy', icon: '🍬', color: 'from-purple-50 to-fuchsia-50 border-purple-200' },
-  { name: 'Animal', icon: '🐾', color: 'from-teal-50 to-cyan-50 border-teal-200' },
-  { name: 'Movie', icon: '🎬', color: 'from-slate-50 to-gray-50 border-slate-200' },
-  { name: 'Children', icon: '👶', color: 'from-yellow-50 to-amber-50 border-yellow-200' },
-  { name: 'Spouse', icon: '💑', color: 'from-rose-50 to-pink-50 border-rose-200' },
-  { name: 'Birthday', icon: '🎂', color: 'from-violet-50 to-purple-50 border-violet-200' },
-  { name: 'Appreciation', icon: '💝', color: 'from-red-50 to-pink-50 border-red-200' },
-  { name: 'Other Favorites', icon: '⭐', color: 'from-yellow-50 to-orange-50 border-yellow-200' },
-];
-
 export default function Preferences({ teamMemberId }: PreferencesProps) {
   const [preferences, setPreferences] = useState<Preference[]>([]);
+  const [preferenceTypes, setPreferenceTypes] = useState<PreferenceType[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [showAddMenu, setShowAddMenu] = useState(false);
 
   useEffect(() => {
-    fetchPreferences();
+    fetchData();
   }, [teamMemberId]);
 
-  const fetchPreferences = async () => {
+  const fetchData = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('team_member_preferences')
-      .select('*')
-      .eq('team_member_id', teamMemberId)
-      .order('display_order', { ascending: true });
+    const [preferencesResult, typesResult] = await Promise.all([
+      supabase
+        .from('team_member_preferences')
+        .select('*')
+        .eq('team_member_id', teamMemberId)
+        .order('display_order', { ascending: true }),
+      supabase
+        .from('preference_types')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true })
+    ]);
 
-    if (error) {
-      console.error('Error fetching preferences:', error);
+    if (preferencesResult.error) {
+      console.error('Error fetching preferences:', preferencesResult.error);
     } else {
-      setPreferences(data || []);
+      setPreferences(preferencesResult.data || []);
+    }
+
+    if (typesResult.error) {
+      console.error('Error fetching preference types:', typesResult.error);
+    } else {
+      setPreferenceTypes(typesResult.data || []);
     }
     setLoading(false);
   };
@@ -73,7 +79,7 @@ export default function Preferences({ teamMemberId }: PreferencesProps) {
     if (error) {
       console.error('Error adding preference:', error);
     } else {
-      fetchPreferences();
+      fetchData();
       setShowAddMenu(false);
     }
   };
@@ -94,7 +100,7 @@ export default function Preferences({ teamMemberId }: PreferencesProps) {
     } else {
       setEditingId(null);
       setEditValue('');
-      fetchPreferences();
+      fetchData();
     }
   };
 
@@ -109,16 +115,16 @@ export default function Preferences({ teamMemberId }: PreferencesProps) {
     if (error) {
       console.error('Error deleting preference:', error);
     } else {
-      fetchPreferences();
+      fetchData();
     }
   };
 
   const getCategoryConfig = (category: string) => {
-    return defaultCategories.find(c => c.name === category) ||
-      { name: category, icon: '📝', color: 'from-slate-50 to-gray-50 border-slate-200' };
+    return preferenceTypes.find(c => c.name === category) ||
+      { name: category, icon: '📝', color: 'from-slate-50 to-gray-50 border-slate-200', display_order: 0, is_active: true, id: '' };
   };
 
-  const availableCategories = defaultCategories.filter(
+  const availableCategories = preferenceTypes.filter(
     dc => !preferences.some(p => p.category === dc.name)
   );
 

@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Edit2, Trash2, UserCircle, Mail, Calendar, Upload, Camera, Save, X } from 'lucide-react';
 import type { Database } from '../../lib/supabase';
 import PersonalityAssessment from '../PersonalityAssessment';
+import Preferences from '../Preferences';
 
 type TeamMember = Database['public']['Tables']['team_members']['Row'];
 
@@ -28,6 +29,7 @@ export default function AdminTeamMembers() {
     role_id: null as string | null,
     start_date: '',
     photo_url: '',
+    user_account_email: '',
     disc_d: null as number | null,
     disc_i: null as number | null,
     disc_s: null as number | null,
@@ -67,9 +69,46 @@ export default function AdminTeamMembers() {
     e.preventDefault();
     if (!user) return;
 
-    const memberData = {
-      ...formData,
+    // Look up user_id by email if user_account_email is provided
+    let userId: string | null = null;
+    if (formData.user_account_email) {
+      const { data: userData, error: userError } = await supabase
+        .from('auth.users')
+        .select('id')
+        .eq('email', formData.user_account_email)
+        .maybeSingle();
+
+      if (userError) {
+        // Try querying via RPC or direct auth query
+        const { data: authUsers } = await supabase.auth.admin.listUsers();
+        const matchedUser = authUsers?.users.find(u => u.email === formData.user_account_email);
+        if (matchedUser) {
+          userId = matchedUser.id;
+        } else {
+          alert('User account not found with that email. Please ensure the team member has created an account first.');
+          return;
+        }
+      } else if (userData) {
+        userId = userData.id;
+      }
+    }
+
+    const memberData: any = {
+      full_name: formData.full_name,
+      email: formData.email,
+      role: formData.role,
+      role_id: formData.role_id,
+      start_date: formData.start_date,
+      photo_url: formData.photo_url,
+      user_id: userId,
       manager_id: user.id,
+      disc_d: formData.disc_d,
+      disc_i: formData.disc_i,
+      disc_s: formData.disc_s,
+      disc_c: formData.disc_c,
+      enneagram_primary: formData.enneagram_primary,
+      enneagram_wing: formData.enneagram_wing,
+      working_genius: formData.working_genius,
     };
 
     if (editingMember) {
@@ -143,8 +182,18 @@ export default function AdminTeamMembers() {
     }
   };
 
-  const handleEdit = (member: TeamMember) => {
+  const handleEdit = async (member: TeamMember) => {
     setEditingMember(member);
+
+    // Fetch user email if user_id is set
+    let userEmail = '';
+    if (member.user_id) {
+      const { data: authData } = await supabase.auth.admin.getUserById(member.user_id);
+      if (authData?.user?.email) {
+        userEmail = authData.user.email;
+      }
+    }
+
     setFormData({
       full_name: member.full_name,
       email: member.email,
@@ -152,6 +201,7 @@ export default function AdminTeamMembers() {
       role_id: member.role_id,
       start_date: member.start_date,
       photo_url: member.photo_url || '',
+      user_account_email: userEmail,
       disc_d: member.disc_d,
       disc_i: member.disc_i,
       disc_s: member.disc_s,
@@ -171,6 +221,7 @@ export default function AdminTeamMembers() {
       role_id: null,
       start_date: '',
       photo_url: '',
+      user_account_email: '',
       disc_d: null,
       disc_i: null,
       disc_s: null,
@@ -315,6 +366,23 @@ export default function AdminTeamMembers() {
               </div>
 
               <div className="border-t border-slate-200 pt-6">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  User Account Email (Optional)
+                </label>
+                <input
+                  type="email"
+                  placeholder="user@example.com"
+                  value={formData.user_account_email}
+                  onChange={(e) => setFormData({ ...formData, user_account_email: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-sm text-slate-500 mt-1">
+                  Link this team member to a user account to allow them to log in and view their data.
+                  The user must create an account first using this email address.
+                </p>
+              </div>
+
+              <div className="border-t border-slate-200 pt-6">
                 <PersonalityAssessment
                   data={{
                     disc_d: formData.disc_d,
@@ -330,6 +398,12 @@ export default function AdminTeamMembers() {
                   }}
                 />
               </div>
+
+              {editingMember && (
+                <div className="border-t border-slate-200 pt-6">
+                  <Preferences teamMemberId={editingMember.id} />
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4 border-t border-slate-200">
                 <button
@@ -440,22 +514,18 @@ export default function AdminTeamMembers() {
                 <td className="px-6 py-4 whitespace-nowrap text-right">
                   <div className="flex items-center justify-end gap-2">
                     <button
-                      onClick={() => setViewingPersonality(member)}
-                      className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    >
-                      <Brain className="w-4 h-4" />
-                    </button>
-                    <button
                       onClick={() => handleEdit(member)}
-                      className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     >
                       <Edit2 className="w-4 h-4" />
+                      <span className="text-sm font-medium">Edit</span>
                     </button>
                     <button
                       onClick={() => handleDelete(member.id)}
-                      className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
+                      <span className="text-sm font-medium">Delete</span>
                     </button>
                   </div>
                 </td>

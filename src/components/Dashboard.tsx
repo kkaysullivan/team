@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { CircleUser as UserCircle, Users, MessageSquare, ClipboardCheck, Plus } from 'lucide-react';
 import type { Database } from '../lib/supabase';
 import CadenceComplianceTracker from './CadenceComplianceTracker';
+import CheckInForm from './CheckInForm';
 
 type TeamMember = Database['public']['Tables']['team_members']['Row'];
 
@@ -16,6 +17,7 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
   const { user } = useAuth();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCheckInForm, setShowCheckInForm] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -40,6 +42,15 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
     setMembers(data || []);
     setLoading(false);
   };
+
+  if (showCheckInForm) {
+    return (
+      <CheckInForm
+        onSave={() => setShowCheckInForm(false)}
+        onCancel={() => setShowCheckInForm(false)}
+      />
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -66,7 +77,7 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
         </button>
 
         <button
-          onClick={() => onNavigate?.('check-ins')}
+          onClick={() => setShowCheckInForm(true)}
           className="bg-white rounded-xl shadow-sm border-2 border-slate-200 p-6 hover:shadow-md hover:border-green-400 transition group text-left"
         >
           <div className="flex items-center gap-4">

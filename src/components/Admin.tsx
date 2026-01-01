@@ -6,6 +6,7 @@ import AdminSkills from './admin/AdminSkills';
 import AdminRoles from './admin/AdminRoles';
 import AdminMaturityModels from './admin/AdminMaturityModels';
 import AdminTeamMembers from './admin/AdminTeamMembers';
+import AdminProfile from './admin/AdminProfile';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('members');
@@ -17,6 +18,7 @@ export default function Admin() {
     { id: 'categories', label: 'Categories' },
     { id: 'skills', label: 'Skills' },
     { id: 'levels', label: 'Levels' },
+    { id: 'profile', label: 'Profile' },
   ];
 
   const renderContent = () => {
@@ -33,6 +35,8 @@ export default function Admin() {
         return <AdminRoles />;
       case 'models':
         return <AdminMaturityModels />;
+      case 'profile':
+        return <AdminProfile />;
       default:
         return <AdminTeamMembers />;
     }

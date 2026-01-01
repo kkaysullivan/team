@@ -337,15 +337,17 @@ export default function AdminCategories() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => startEdit(category)}
-                      className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     >
                       <Edit2 className="w-4 h-4" />
+                      <span className="text-sm font-medium">Edit</span>
                     </button>
                     <button
                       onClick={() => handleDelete(category.id)}
-                      className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
+                      <span className="text-sm font-medium">Delete</span>
                     </button>
                   </div>
                 </div>
@@ -423,9 +425,10 @@ export default function AdminCategories() {
                           </div>
                           <button
                             onClick={() => handleRemoveSkill(category.id, cs.skill_id)}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
+                            <span className="text-sm font-medium">Remove</span>
                           </button>
                         </div>
                       ))}
