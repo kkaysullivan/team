@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, Edit2, Trash2, UserCircle, Mail, Calendar, Upload, Camera, Save, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, UserCircle, Mail, Calendar, Upload, Camera, Save, X, Link } from 'lucide-react';
 import type { Database } from '../../lib/supabase';
 import PersonalityAssessment from '../PersonalityAssessment';
 import Preferences from '../Preferences';
@@ -22,6 +22,8 @@ export default function AdminTeamMembers() {
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [viewingPersonality, setViewingPersonality] = useState<TeamMember | null>(null);
+  const [linkingMember, setLinkingMember] = useState<TeamMember | null>(null);
+  const [linkEmail, setLinkEmail] = useState('');
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -29,7 +31,6 @@ export default function AdminTeamMembers() {
     role_id: null as string | null,
     start_date: '',
     photo_url: '',
-    user_account_email: '',
     disc_d: null as number | null,
     disc_i: null as number | null,
     disc_s: null as number | null,
@@ -69,30 +70,6 @@ export default function AdminTeamMembers() {
     e.preventDefault();
     if (!user) return;
 
-    // Look up user_id by email if user_account_email is provided
-    let userId: string | null = null;
-    if (formData.user_account_email) {
-      const { data: userData, error: userError } = await supabase
-        .from('auth.users')
-        .select('id')
-        .eq('email', formData.user_account_email)
-        .maybeSingle();
-
-      if (userError) {
-        // Try querying via RPC or direct auth query
-        const { data: authUsers } = await supabase.auth.admin.listUsers();
-        const matchedUser = authUsers?.users.find(u => u.email === formData.user_account_email);
-        if (matchedUser) {
-          userId = matchedUser.id;
-        } else {
-          alert('User account not found with that email. Please ensure the team member has created an account first.');
-          return;
-        }
-      } else if (userData) {
-        userId = userData.id;
-      }
-    }
-
     const memberData: any = {
       full_name: formData.full_name,
       email: formData.email,
@@ -100,7 +77,6 @@ export default function AdminTeamMembers() {
       role_id: formData.role_id,
       start_date: formData.start_date,
       photo_url: formData.photo_url,
-      user_id: userId,
       manager_id: user.id,
       disc_d: formData.disc_d,
       disc_i: formData.disc_i,
@@ -182,17 +158,8 @@ export default function AdminTeamMembers() {
     }
   };
 
-  const handleEdit = async (member: TeamMember) => {
+  const handleEdit = (member: TeamMember) => {
     setEditingMember(member);
-
-    // Fetch user email if user_id is set
-    let userEmail = '';
-    if (member.user_id) {
-      const { data: authData } = await supabase.auth.admin.getUserById(member.user_id);
-      if (authData?.user?.email) {
-        userEmail = authData.user.email;
-      }
-    }
 
     setFormData({
       full_name: member.full_name,
@@ -201,7 +168,7 @@ export default function AdminTeamMembers() {
       role_id: member.role_id,
       start_date: member.start_date,
       photo_url: member.photo_url || '',
-      user_account_email: userEmail,
+      user_account_email: '',
       disc_d: member.disc_d,
       disc_i: member.disc_i,
       disc_s: member.disc_s,
@@ -213,6 +180,32 @@ export default function AdminTeamMembers() {
     setShowForm(true);
   };
 
+  const handleLinkAccount = async () => {
+    if (!linkingMember || !linkEmail.trim()) return;
+
+    try {
+      const { data, error } = await supabase.rpc('link_team_member_to_user', {
+        p_team_member_id: linkingMember.id,
+        p_user_email: linkEmail.trim()
+      });
+
+      if (error) throw error;
+
+      if (data && typeof data === 'object' && 'error' in data) {
+        alert(data.error);
+        return;
+      }
+
+      alert('Account linked successfully!');
+      setLinkingMember(null);
+      setLinkEmail('');
+      fetchData();
+    } catch (error: any) {
+      console.error('Error linking account:', error);
+      alert(error.message || 'Failed to link account');
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       full_name: '',
@@ -221,7 +214,6 @@ export default function AdminTeamMembers() {
       role_id: null,
       start_date: '',
       photo_url: '',
-      user_account_email: '',
       disc_d: null,
       disc_i: null,
       disc_s: null,
@@ -366,23 +358,6 @@ export default function AdminTeamMembers() {
               </div>
 
               <div className="border-t border-slate-200 pt-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  User Account Email (Optional)
-                </label>
-                <input
-                  type="email"
-                  placeholder="user@example.com"
-                  value={formData.user_account_email}
-                  onChange={(e) => setFormData({ ...formData, user_account_email: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <p className="text-sm text-slate-500 mt-1">
-                  Link this team member to a user account to allow them to log in and view their data.
-                  The user must create an account first using this email address.
-                </p>
-              </div>
-
-              <div className="border-t border-slate-200 pt-6">
                 <PersonalityAssessment
                   data={{
                     disc_d: formData.disc_d,
@@ -460,6 +435,49 @@ export default function AdminTeamMembers() {
         </div>
       )}
 
+      {linkingMember && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Link User Account</h3>
+            <p className="text-slate-600 mb-4">
+              Link <strong>{linkingMember.full_name}</strong> to an existing user account.
+              The team member must have already created an account using their email address.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                User Account Email
+              </label>
+              <input
+                type="email"
+                value={linkEmail}
+                onChange={(e) => setLinkEmail(e.target.value)}
+                placeholder="user@example.com"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleLinkAccount}
+                disabled={!linkEmail.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Link Account
+              </button>
+              <button
+                onClick={() => {
+                  setLinkingMember(null);
+                  setLinkEmail('');
+                }}
+                className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="border border-slate-200 rounded-lg overflow-hidden">
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
@@ -513,6 +531,19 @@ export default function AdminTeamMembers() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">
                   <div className="flex items-center justify-end gap-2">
+                    {!member.user_id && (
+                      <button
+                        onClick={() => {
+                          setLinkingMember(member);
+                          setLinkEmail('');
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Link to user account"
+                      >
+                        <Link className="w-4 h-4" />
+                        <span className="text-sm font-medium">Link Account</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => handleEdit(member)}
                       className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

@@ -26,43 +26,78 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      detectUserRole();
-    }
+    let mounted = true;
+
+    const detectUserRole = async () => {
+      console.log('[Role Detection] Starting, user:', user?.id);
+
+      if (!user) {
+        console.log('[Role Detection] No user, ending');
+        if (mounted) {
+          setRoleLoading(false);
+        }
+        return;
+      }
+
+      try {
+        console.log('[Role Detection] Checking if user is a team member...');
+        const { data: teamMemberData, error: teamMemberError } = await supabase
+          .from('team_members')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        console.log('[Role Detection] Team member check:', { data: teamMemberData, error: teamMemberError });
+
+        if (!mounted) return;
+
+        if (teamMemberData) {
+          console.log('[Role Detection] User is a team member');
+          setUserRole('team_member');
+          setRoleLoading(false);
+          return;
+        }
+
+        console.log('[Role Detection] Checking if user is a manager...');
+        const { data: managerData, error: managerError } = await supabase
+          .from('team_members')
+          .select('id')
+          .eq('manager_id', user.id)
+          .limit(1)
+          .maybeSingle();
+
+        console.log('[Role Detection] Manager check:', { data: managerData, error: managerError });
+
+        if (mounted) {
+          const role = managerData ? 'manager' : 'manager';
+          console.log('[Role Detection] Setting role to:', role);
+          setUserRole(role);
+          setRoleLoading(false);
+        }
+      } catch (error) {
+        console.error('[Role Detection] Error:', error);
+        if (mounted) {
+          setUserRole('manager');
+          setRoleLoading(false);
+        }
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      if (mounted && roleLoading) {
+        console.warn('[Role Detection] Timed out after 5 seconds, defaulting to manager');
+        setUserRole('manager');
+        setRoleLoading(false);
+      }
+    }, 5000);
+
+    detectUserRole();
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [user]);
-
-  const detectUserRole = async () => {
-    setRoleLoading(true);
-
-    // Check if user is a team member
-    const { data: teamMemberData } = await supabase
-      .from('team_members')
-      .select('id')
-      .eq('user_id', user?.id)
-      .maybeSingle();
-
-    if (teamMemberData) {
-      setUserRole('team_member');
-      setRoleLoading(false);
-      return;
-    }
-
-    // Check if user is a manager (has team members)
-    const { data: managerData } = await supabase
-      .from('team_members')
-      .select('id')
-      .eq('manager_id', user?.id)
-      .limit(1)
-      .maybeSingle();
-
-    if (managerData) {
-      setUserRole('manager');
-    } else {
-      setUserRole('manager'); // Default to manager view for new accounts
-    }
-
-    setRoleLoading(false);
-  };
 
   if (isSelfAssessment) {
     return <SelfAssessment />;
@@ -71,7 +106,12 @@ function AppContent() {
   if (loading || roleLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-slate-600 text-sm">
+            {loading ? 'Loading authentication...' : 'Detecting user role...'}
+          </p>
+        </div>
       </div>
     );
   }
