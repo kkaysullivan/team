@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, UserCircle, Calendar, MessageSquare, BarChart3, Camera, Target, TrendingUp } from 'lucide-react';
+import { ArrowLeft, UserCircle, Calendar, BarChart3, Camera, Target, TrendingUp } from 'lucide-react';
 import type { Database } from '../lib/supabase';
-import OneOnOnes from './OneOnOnes';
 import CheckIns from './CheckIns';
 import MaturityModel from './MaturityModel';
 import PersonalityAssessment from './PersonalityAssessment';
@@ -15,12 +14,14 @@ type TeamMember = Database['public']['Tables']['team_members']['Row'];
 interface TeamMemberDetailProps {
   memberId: string;
   onBack: () => void;
+  initialTab?: 'checkins' | 'maturity' | 'profile' | 'kras' | 'growth';
+  initialEditCheckInId?: string;
 }
 
-export default function TeamMemberDetail({ memberId, onBack }: TeamMemberDetailProps) {
+export default function TeamMemberDetail({ memberId, onBack, initialTab = 'checkins', initialEditCheckInId }: TeamMemberDetailProps) {
   const [member, setMember] = useState<TeamMember | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'oneonones' | 'checkins' | 'maturity' | 'profile' | 'kras' | 'growth'>('oneonones');
+  const [activeTab, setActiveTab] = useState<'checkins' | 'maturity' | 'profile' | 'kras' | 'growth'>(initialTab);
 
   useEffect(() => {
     fetchMember();
@@ -65,7 +66,6 @@ export default function TeamMemberDetail({ memberId, onBack }: TeamMemberDetailP
   }
 
   const tabs = [
-    { id: 'oneonones' as const, label: '1:1s', icon: MessageSquare },
     { id: 'checkins' as const, label: 'Check-Ins', icon: Calendar },
     { id: 'kras' as const, label: 'KRAs', icon: Target },
     { id: 'growth' as const, label: 'Growth Areas', icon: TrendingUp },
@@ -133,8 +133,7 @@ export default function TeamMemberDetail({ memberId, onBack }: TeamMemberDetailP
         </div>
 
         <div className="p-6">
-          {activeTab === 'oneonones' && <OneOnOnes teamMemberId={memberId} />}
-          {activeTab === 'checkins' && <CheckIns teamMemberId={memberId} />}
+          {activeTab === 'checkins' && <CheckIns teamMemberId={memberId} initialEditCheckInId={initialEditCheckInId} />}
           {activeTab === 'kras' && (
             <KRAManagement
               teamMemberId={memberId}

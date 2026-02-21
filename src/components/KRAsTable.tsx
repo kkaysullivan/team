@@ -1047,7 +1047,7 @@ export default function KRAsTable({ teamMemberId, teamMember }: KRAsTableProps) 
                     {getSortIcon('is_active')}
                   </button>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -1081,8 +1081,8 @@ export default function KRAsTable({ teamMemberId, teamMember }: KRAsTableProps) 
                         {kra.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex gap-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex gap-2 justify-end">
                         {kra.is_active ? (
                           <>
                             <button

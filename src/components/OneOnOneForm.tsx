@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { X, Mic, MicOff, Sparkles, Plus, Trash2 } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import DOMPurify from 'dompurify';
 import type { Database } from '../lib/supabase';
 
 type OneOnOne = Database['public']['Tables']['one_on_ones']['Row'];
@@ -492,7 +493,7 @@ export default function OneOnOneForm({ teamMemberId, existingData, onSave, onCan
                 ) : (
                   <div
                     className="prose prose-slate max-w-none"
-                    dangerouslySetInnerHTML={{ __html: formData.summary || '<p class="text-slate-500">No summary available. Generate one from the Notes tab.</p>' }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formData.summary || '<p class="text-slate-500">No summary available. Generate one from the Notes tab.</p>') }}
                   />
                 )}
               </div>

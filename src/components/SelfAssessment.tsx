@@ -103,8 +103,6 @@ export default function SelfAssessment() {
 
   const loadAssessmentData = async (memberId: string, roleId: string | null) => {
     try {
-      console.log('Loading assessment data for member:', memberId, 'role:', roleId);
-
       const { data: levelsData, error: levelsError } = await supabase
         .from('levels')
         .select('*')
@@ -134,24 +132,6 @@ export default function SelfAssessment() {
         .select('skill_id, self_rating')
         .eq('team_member_id', memberId);
 
-      console.log('Data loaded:', {
-        levels: levelsData?.length,
-        categories: categoriesData?.length,
-        skills: skillsData?.length,
-        skillLevels: skillLevelsData?.length,
-        categorySkills: categorySkillsData?.length,
-        assessments: assessmentsData?.length
-      });
-
-      console.log('Errors:', {
-        levelsError,
-        categoriesError,
-        skillsError,
-        skillLevelsError,
-        categorySkillsError,
-        assessmentsError
-      });
-
       if (levelsData) setLevels(levelsData);
       if (categoriesData) {
         setCategories(categoriesData);
@@ -173,7 +153,6 @@ export default function SelfAssessment() {
           }
           csMap[cs.category_id].push(cs.skill_id);
         });
-        console.log('Category skills map:', csMap);
         setCategorySkills(csMap);
       }
 
@@ -418,7 +397,7 @@ export default function SelfAssessment() {
           </p>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-left">
             <p className="text-slate-700 mb-3">
-              Your responses have been saved successfully. Kristy will compare your ratings with her own assessment during your upcoming 1:1 meeting.
+              Your responses have been saved successfully. Your manager will compare your ratings with their own assessment during your upcoming 1:1 meeting.
             </p>
             <p className="text-slate-700">
               This will be a great opportunity to discuss your development, identify growth areas, and align on your career progression.
@@ -460,7 +439,7 @@ export default function SelfAssessment() {
               </li>
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                <span>Kristy will compare your ratings with hers in your upcoming 1:1</span>
+                <span>Your manager will compare your ratings with theirs in your upcoming 1:1</span>
               </li>
             </ul>
           </div>
@@ -662,7 +641,7 @@ export default function SelfAssessment() {
 
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-sm text-slate-700 text-center">
-            Your responses will be compared with Kristy's assessment in your upcoming 1:1 meeting
+            Your responses will be compared with your manager's assessment in your upcoming 1:1 meeting
           </p>
         </div>
       </div>

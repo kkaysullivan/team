@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Database } from '../lib/supabase';
 import ReflectionQuestions from './checkin/ReflectionQuestions';
 import PeerFeedback from './checkin/PeerFeedback';
@@ -33,11 +33,20 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedMemberName, setSelectedMemberName] = useState('');
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    basic: true,
+    notes: false,
+    reflection: false,
+    peer: false,
+    maturity: false,
+    growth: false
+  });
 
   const [formData, setFormData] = useState({
     team_member_id: teamMemberId || existingData?.team_member_id || '',
     type: existingData?.type || 'quarterly',
     review_date: existingData?.review_date || new Date().toISOString().split('T')[0],
+    one_on_one_notes: (existingData as any)?.one_on_one_notes || '',
   });
 
   const [annualData, setAnnualData] = useState({
@@ -91,6 +100,30 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
     }
   };
 
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const updateSection = async (sectionData: Partial<any>) => {
+    if (!existingData?.id || !user) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('performance_reviews')
+        .update(sectionData)
+        .eq('id', existingData.id);
+
+      if (error) throw error;
+      alert('Section updated successfully!');
+    } catch (error) {
+      console.error('Error updating section:', error);
+      alert('Failed to update section. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -103,6 +136,7 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
         manager_id: user.id,
         type: formData.type,
         review_date: formData.review_date,
+        one_on_one_notes: formData.one_on_one_notes || null,
         overall_rating: null,
         period_start: null,
         period_end: null,
@@ -148,6 +182,50 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
     }
   };
 
+  const AccordionSection = ({
+    title,
+    sectionKey,
+    children,
+    onUpdate
+  }: {
+    title: string;
+    sectionKey: string;
+    children: React.ReactNode;
+    onUpdate?: () => void;
+  }) => (
+    <div className="border border-slate-200 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => toggleSection(sectionKey)}
+        className="w-full px-6 py-4 flex items-center justify-between bg-slate-50 hover:bg-slate-100 transition"
+      >
+        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+        {expandedSections[sectionKey] ? (
+          <ChevronUp className="w-5 h-5 text-slate-600" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-slate-600" />
+        )}
+      </button>
+      {expandedSections[sectionKey] && (
+        <div className="p-6 bg-white">
+          {children}
+          {onUpdate && existingData?.id && (
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={onUpdate}
+                disabled={loading}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {loading ? 'Updating...' : 'Update Section'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="max-w-7xl mx-auto">
       <button
@@ -163,120 +241,174 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
           {existingData?.id ? 'Edit' : 'New'} Check-in
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Team Member
-              </label>
-              <select
-                required
-                disabled={!!teamMemberId}
-                value={formData.team_member_id}
-                onChange={(e) => setFormData({ ...formData, team_member_id: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100"
-              >
-                <option value="">Select team member</option>
-                {members.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="space-y-4">
+          <AccordionSection
+            title="Basic Information"
+            sectionKey="basic"
+            onUpdate={() => updateSection({
+              team_member_id: formData.team_member_id,
+              type: formData.type,
+              review_date: formData.review_date,
+              quarter: formData.type === 'quarterly' ? calculatedQuarter : null,
+              year: calculatedYear
+            })}
+          >
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Team Member
+                  </label>
+                  <select
+                    required
+                    disabled={!!teamMemberId}
+                    value={formData.team_member_id}
+                    onChange={(e) => setFormData({ ...formData, team_member_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100"
+                  >
+                    <option value="">Select team member</option>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Type
-              </label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="quarterly">Quarterly</option>
-                <option value="annual">Annual</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Review Date
-              </label>
-              <input
-                type="date"
-                required
-                value={formData.review_date}
-                onChange={(e) => setFormData({ ...formData, review_date: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {formData.type === 'quarterly' && calculatedQuarter && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Quarter
-                </label>
-                <div className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-700">
-                  {calculatedQuarter} {calculatedYear}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Type
+                  </label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="quarterly">Quarterly</option>
+                    <option value="annual">Annual</option>
+                  </select>
                 </div>
               </div>
-            )}
-          </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Review Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.review_date}
+                    onChange={(e) => setFormData({ ...formData, review_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {formData.type === 'quarterly' && calculatedQuarter && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Quarter
+                    </label>
+                    <div className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-700">
+                      {calculatedQuarter} {calculatedYear}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </AccordionSection>
+
+          <AccordionSection
+            title="1-on-1 Notes"
+            sectionKey="notes"
+            onUpdate={() => updateSection({ one_on_one_notes: formData.one_on_one_notes })}
+          >
+            <div>
+              <p className="text-sm text-slate-600 mb-3">
+                Paste consolidated notes from recent 1-on-1 meetings to provide context for this check-in
+              </p>
+              <textarea
+                value={formData.one_on_one_notes}
+                onChange={(e) => setFormData({ ...formData, one_on_one_notes: e.target.value })}
+                rows={8}
+                placeholder="Paste your 1-on-1 notes here..."
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono text-sm"
+              />
+            </div>
+          </AccordionSection>
 
           {formData.type === 'annual' && formData.team_member_id && (
-            <div className="space-y-8 pt-8 mt-8 border-t-2 border-slate-200">
-              <ReflectionQuestions
-                data={annualData.reflection_questions}
-                onChange={(data) => setAnnualData({ ...annualData, reflection_questions: data })}
-              />
+            <>
+              <AccordionSection
+                title="Reflection Questions"
+                sectionKey="reflection"
+                onUpdate={() => updateSection({ reflection_questions: annualData.reflection_questions })}
+              >
+                <ReflectionQuestions
+                  data={annualData.reflection_questions}
+                  onChange={(data) => setAnnualData({ ...annualData, reflection_questions: data })}
+                />
+              </AccordionSection>
 
-              <div className="pt-8 mt-8 border-t border-slate-200">
+              <AccordionSection
+                title="Peer Feedback"
+                sectionKey="peer"
+                onUpdate={() => updateSection({ peer_feedback: annualData.peer_feedback })}
+              >
                 <PeerFeedback
                   data={annualData.peer_feedback}
                   onChange={(data) => setAnnualData({ ...annualData, peer_feedback: data })}
                   teamMemberName={selectedMemberName}
                 />
-              </div>
+              </AccordionSection>
 
-              <div className="pt-8 mt-8 border-t border-slate-200">
+              <AccordionSection
+                title="Maturity Model Snapshot"
+                sectionKey="maturity"
+                onUpdate={() => updateSection({ maturity_snapshot: annualData.maturity_snapshot })}
+              >
                 <MaturitySnapshot
                   data={annualData.maturity_snapshot}
                   onChange={(data) => setAnnualData({ ...annualData, maturity_snapshot: data })}
                   teamMemberId={formData.team_member_id}
                 />
-              </div>
+              </AccordionSection>
 
-              <div className="pt-8 mt-8 border-t border-slate-200">
+              <AccordionSection
+                title="Growth Areas"
+                sectionKey="growth"
+                onUpdate={() => updateSection({ growth_areas: annualData.growth_areas })}
+              >
                 <GrowthAreasSection
                   data={annualData.growth_areas}
                   onChange={(data) => setAnnualData({ ...annualData, growth_areas: data })}
                   teamMemberId={formData.team_member_id}
                 />
-              </div>
-            </div>
+              </AccordionSection>
+            </>
           )}
 
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={loading}
-              className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-            >
-              {loading ? 'Saving...' : (existingData?.id ? 'Update' : 'Create')} Check-in
-            </button>
-          </div>
-        </form>
+          {!existingData?.id && (
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={loading}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {loading ? 'Creating...' : 'Create Check-in'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

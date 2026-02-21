@@ -1,20 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './lib/supabase';
 import Auth from './components/Auth';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
-import TeamMemberDetail from './components/TeamMemberDetail';
-import Admin from './components/Admin';
-import OneOnOnes from './components/OneOnOnes';
-import CheckIns from './components/CheckIns';
-import SelfAssessment from './components/SelfAssessment';
-import TeamMemberPortal from './components/TeamMemberPortal';
+import ErrorBoundary from './components/ErrorBoundary';
+
+const TeamMemberDetail = lazy(() => import('./components/TeamMemberDetail'));
+const TeamMemberDashboard = lazy(() => import('./components/TeamMemberDashboard'));
+const Admin = lazy(() => import('./components/Admin'));
+const AllCheckIns = lazy(() => import('./components/AllCheckIns'));
+const SelfAssessment = lazy(() => import('./components/SelfAssessment'));
+const TeamMemberPortal = lazy(() => import('./components/TeamMemberPortal'));
 
 function AppContent() {
   const { user, loading } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [editingCheckInId, setEditingCheckInId] = useState<string | null>(null);
   const [isSelfAssessment, setIsSelfAssessment] = useState(false);
   const [userRole, setUserRole] = useState<'manager' | 'team_member' | null>(null);
   const [roleLoading, setRoleLoading] = useState(true);
@@ -29,10 +32,7 @@ function AppContent() {
     let mounted = true;
 
     const detectUserRole = async () => {
-      console.log('[Role Detection] Starting, user:', user?.id);
-
       if (!user) {
-        console.log('[Role Detection] No user, ending');
         if (mounted) {
           setRoleLoading(false);
         }
@@ -40,25 +40,20 @@ function AppContent() {
       }
 
       try {
-        console.log('[Role Detection] Checking if user is a team member...');
         const { data: teamMemberData, error: teamMemberError } = await supabase
           .from('team_members')
           .select('id')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        console.log('[Role Detection] Team member check:', { data: teamMemberData, error: teamMemberError });
-
         if (!mounted) return;
 
         if (teamMemberData) {
-          console.log('[Role Detection] User is a team member');
           setUserRole('team_member');
           setRoleLoading(false);
           return;
         }
 
-        console.log('[Role Detection] Checking if user is a manager...');
         const { data: managerData, error: managerError } = await supabase
           .from('team_members')
           .select('id')
@@ -66,11 +61,8 @@ function AppContent() {
           .limit(1)
           .maybeSingle();
 
-        console.log('[Role Detection] Manager check:', { data: managerData, error: managerError });
-
         if (mounted) {
           const role = managerData ? 'manager' : 'manager';
-          console.log('[Role Detection] Setting role to:', role);
           setUserRole(role);
           setRoleLoading(false);
         }
@@ -85,7 +77,6 @@ function AppContent() {
 
     const timeoutId = setTimeout(() => {
       if (mounted && roleLoading) {
-        console.warn('[Role Detection] Timed out after 5 seconds, defaulting to manager');
         setUserRole('manager');
         setRoleLoading(false);
       }
@@ -100,7 +91,15 @@ function AppContent() {
   }, [user]);
 
   if (isSelfAssessment) {
-    return <SelfAssessment />;
+    return (
+      <Suspense fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      }>
+        <SelfAssessment />
+      </Suspense>
+    );
   }
 
   if (loading || roleLoading) {
@@ -122,12 +121,20 @@ function AppContent() {
 
   // Show team member portal if user is a team member
   if (userRole === 'team_member') {
-    return <TeamMemberPortal />;
+    return (
+      <Suspense fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      }>
+        <TeamMemberPortal />
+      </Suspense>
+    );
   }
 
   const handleSelectMember = (memberId: string) => {
     setSelectedMemberId(memberId);
-    setCurrentView('member-detail');
+    setCurrentView('member-dashboard');
   };
 
   const handleBackToDashboard = () => {
@@ -135,20 +142,78 @@ function AppContent() {
     setCurrentView('dashboard');
   };
 
+  const handleViewSection = (section: 'growth' | 'kras' | 'checkins' | 'maturity' | 'profile') => {
+    setCurrentView(`member-${section}`);
+  };
+
+  const handleEditCheckIn = (checkInId: string) => {
+    setEditingCheckInId(checkInId);
+    setCurrentView('member-checkins');
+  };
+
+  const handleDeleteCheckIn = async (checkInId: string) => {
+    if (!confirm('Are you sure you want to delete this check-in?')) return;
+
+    await supabase.from('performance_reviews').delete().eq('id', checkInId);
+    setCurrentView('dashboard');
+  };
+
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
         return <Dashboard onSelectMember={handleSelectMember} onNavigate={setCurrentView} />;
-      case 'member-detail':
+      case 'member-dashboard':
         return selectedMemberId ? (
-          <TeamMemberDetail memberId={selectedMemberId} onBack={handleBackToDashboard} />
+          <TeamMemberDashboard
+            memberId={selectedMemberId}
+            onClose={handleBackToDashboard}
+            onViewSection={handleViewSection}
+            onEditCheckIn={handleEditCheckIn}
+            onDeleteCheckIn={handleDeleteCheckIn}
+          />
         ) : (
           <Dashboard onSelectMember={handleSelectMember} onNavigate={setCurrentView} />
         );
-      case 'one-on-ones':
-        return <OneOnOnes openFormInitially={true} />;
+      case 'member-growth':
+        return selectedMemberId ? (
+          <TeamMemberDetail memberId={selectedMemberId} onBack={() => setCurrentView('member-dashboard')} initialTab="growth" />
+        ) : (
+          <Dashboard onSelectMember={handleSelectMember} onNavigate={setCurrentView} />
+        );
+      case 'member-kras':
+        return selectedMemberId ? (
+          <TeamMemberDetail memberId={selectedMemberId} onBack={() => setCurrentView('member-dashboard')} initialTab="kras" />
+        ) : (
+          <Dashboard onSelectMember={handleSelectMember} onNavigate={setCurrentView} />
+        );
+      case 'member-checkins':
+        return selectedMemberId ? (
+          <TeamMemberDetail
+            memberId={selectedMemberId}
+            onBack={() => {
+              setCurrentView('member-dashboard');
+              setEditingCheckInId(null);
+            }}
+            initialTab="checkins"
+            initialEditCheckInId={editingCheckInId || undefined}
+          />
+        ) : (
+          <Dashboard onSelectMember={handleSelectMember} onNavigate={setCurrentView} />
+        );
+      case 'member-maturity':
+        return selectedMemberId ? (
+          <TeamMemberDetail memberId={selectedMemberId} onBack={() => setCurrentView('member-dashboard')} initialTab="maturity" />
+        ) : (
+          <Dashboard onSelectMember={handleSelectMember} onNavigate={setCurrentView} />
+        );
+      case 'member-profile':
+        return selectedMemberId ? (
+          <TeamMemberDetail memberId={selectedMemberId} onBack={() => setCurrentView('member-dashboard')} initialTab="profile" />
+        ) : (
+          <Dashboard onSelectMember={handleSelectMember} onNavigate={setCurrentView} />
+        );
       case 'check-ins':
-        return <CheckIns openFormInitially={true} />;
+        return <AllCheckIns onBack={handleBackToDashboard} />;
       case 'admin':
         return <Admin />;
       default:
@@ -156,18 +221,28 @@ function AppContent() {
     }
   };
 
+  const LoadingFallback = () => (
+    <div className="flex items-center justify-center p-12">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  );
+
   return (
     <Layout currentView={currentView} onViewChange={setCurrentView}>
-      {renderView()}
+      <Suspense fallback={<LoadingFallback />}>
+        {renderView()}
+      </Suspense>
     </Layout>
   );
 }
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

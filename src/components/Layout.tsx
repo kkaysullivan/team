@@ -38,7 +38,7 @@ export default function Layout({ children, currentView, onViewChange }: LayoutPr
                 {menuItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = currentView === item.id ||
-                    (item.id === 'dashboard' && currentView === 'member-detail');
+                    (item.id === 'dashboard' && (currentView === 'member-detail' || currentView === 'check-ins'));
                   return (
                     <button
                       key={item.id}
@@ -85,7 +85,7 @@ export default function Layout({ children, currentView, onViewChange }: LayoutPr
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentView === item.id ||
-                  (item.id === 'dashboard' && currentView === 'member-detail');
+                  (item.id === 'dashboard' && (currentView === 'member-detail' || currentView === 'check-ins'));
                 return (
                   <button
                     key={item.id}

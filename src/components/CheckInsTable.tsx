@@ -7,7 +7,8 @@ import {
   Search,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  MessageSquare
 } from 'lucide-react';
 import type { Database } from '../lib/supabase';
 import CheckInForm from './CheckInForm';
@@ -26,12 +27,13 @@ interface CheckInWithMember extends CheckIn {
 interface CheckInsTableProps {
   teamMemberId?: string;
   showHeader?: boolean;
+  initialEditCheckInId?: string;
 }
 
 type SortField = 'review_date' | 'type' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 
-export default function CheckInsTable({ teamMemberId, showHeader = true }: CheckInsTableProps) {
+export default function CheckInsTable({ teamMemberId, showHeader = true, initialEditCheckInId }: CheckInsTableProps) {
   const [checkIns, setCheckIns] = useState<CheckInWithMember[]>([]);
   const [filteredCheckIns, setFilteredCheckIns] = useState<CheckInWithMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +46,16 @@ export default function CheckInsTable({ teamMemberId, showHeader = true }: Check
   useEffect(() => {
     fetchCheckIns();
   }, [teamMemberId]);
+
+  useEffect(() => {
+    if (initialEditCheckInId && checkIns.length > 0) {
+      const checkIn = checkIns.find(c => c.id === initialEditCheckInId);
+      if (checkIn) {
+        setEditingCheckIn(checkIn);
+        setShowForm(true);
+      }
+    }
+  }, [initialEditCheckInId, checkIns]);
 
   useEffect(() => {
     filterAndSort();
@@ -80,7 +92,8 @@ export default function CheckInsTable({ teamMemberId, showHeader = true }: Check
         (checkIn) =>
           checkIn.team_member.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           checkIn.type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          checkIn.quarter?.toLowerCase().includes(searchQuery.toLowerCase())
+          checkIn.quarter?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (checkIn as any).one_on_one_notes?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -268,7 +281,7 @@ export default function CheckInsTable({ teamMemberId, showHeader = true }: Check
                     {getSortIcon('type')}
                   </button>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -289,17 +302,25 @@ export default function CheckInsTable({ teamMemberId, showHeader = true }: Check
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-slate-900">
-                        {formatTitle(checkIn)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-900">
+                          {formatTitle(checkIn)}
+                        </span>
+                        {(checkIn as any).one_on_one_notes && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700" title="Includes 1-on-1 notes">
+                            <MessageSquare className="w-3 h-3" />
+                            1-on-1
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
                         {formatType(checkIn)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex gap-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex gap-2 justify-end">
                         <button
                           onClick={() => handleEdit(checkIn)}
                           className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"

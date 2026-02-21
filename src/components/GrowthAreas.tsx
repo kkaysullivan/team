@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Plus, Edit2, Trash2, TrendingUp, Calendar, Star } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import DOMPurify from 'dompurify';
 
 interface GrowthArea {
   id: string;
@@ -159,7 +160,6 @@ export default function GrowthAreas({ teamMemberId }: GrowthAreasProps) {
     }
 
     if (!teamMember?.current_level) {
-      console.warn('Team member has no current level set');
       setSkills([]);
       return;
     }
@@ -577,7 +577,7 @@ export default function GrowthAreas({ teamMemberId }: GrowthAreasProps) {
                     <p className="text-xs text-slate-500 mb-2">Leader Comments</p>
                     <div
                       className="text-sm text-slate-700 prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: area.leader_comments }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(area.leader_comments) }}
                     />
                   </div>
                 )}
@@ -649,7 +649,7 @@ export default function GrowthAreas({ teamMemberId }: GrowthAreasProps) {
                       <p className="text-xs text-slate-500 mb-2">Leader Comments</p>
                       <div
                         className="text-sm text-slate-600 prose prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: area.leader_comments }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(area.leader_comments) }}
                       />
                     </div>
                   )}

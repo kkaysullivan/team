@@ -281,7 +281,7 @@ export default function OneOnOnesTable({ memberId, memberName, onBack }: OneOnOn
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
                   Preview
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-600 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -356,8 +356,8 @@ export default function OneOnOnesTable({ memberId, memberName, onBack }: OneOnOn
                         {oneOnOne.notes ? oneOnOne.notes.substring(0, 100) + '...' : '-'}
                       </p>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex gap-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex gap-2 justify-end">
                         <button
                           onClick={() => handleEdit(oneOnOne)}
                           className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"

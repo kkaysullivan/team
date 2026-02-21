@@ -512,9 +512,6 @@ export default function CadenceComplianceTracker() {
                   Team Member
                 </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">
-                  1:1
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">
                   Quarterly
                 </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-slate-600 uppercase tracking-wider">
@@ -527,21 +524,6 @@ export default function CadenceComplianceTracker() {
                 <tr key={status.memberId} className="hover:bg-slate-50 transition">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-slate-900">{status.memberName}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => openScheduleModal(status.memberId, status.memberName, 'oneOnOne', status.oneOnOneLastDate)}
-                      className="flex flex-col items-center gap-2 mx-auto group"
-                    >
-                      <div className={`w-8 h-8 rounded-full ${getStatusColor(status.oneOnOneStatus)} flex items-center justify-center text-white shadow-md group-hover:scale-110 transition`}>
-                        {getStatusIcon(status.oneOnOneStatus)}
-                      </div>
-                      {status.oneOnOneLastDate && (
-                        <span className="text-xs text-slate-500 text-center">
-                          {formatDateDisplay(status.oneOnOneLastDate)}
-                        </span>
-                      )}
-                    </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button

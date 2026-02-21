@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { CircleUser as UserCircle } from 'lucide-react';
 import type { Database } from '../lib/supabase';
 import TeamMemberDashboard from './TeamMemberDashboard';
+import TeamMemberDetail from './TeamMemberDetail';
 
 type TeamMember = Database['public']['Tables']['team_members']['Row'];
 
@@ -12,6 +13,8 @@ export default function MyTeam() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editingCheckInId, setEditingCheckInId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -35,11 +38,38 @@ export default function MyTeam() {
     setLoading(false);
   };
 
+  if (editingMemberId && editingCheckInId) {
+    return (
+      <TeamMemberDetail
+        memberId={editingMemberId}
+        onBack={() => {
+          setEditingMemberId(null);
+          setEditingCheckInId(null);
+        }}
+        initialTab="checkins"
+        initialEditCheckInId={editingCheckInId}
+      />
+    );
+  }
+
+  const handleDeleteCheckIn = async (checkInId: string) => {
+    if (!confirm('Are you sure you want to delete this check-in?')) return;
+
+    await supabase.from('performance_reviews').delete().eq('id', checkInId);
+    setViewingMemberId(null);
+  };
+
   if (viewingMemberId) {
     return (
       <TeamMemberDashboard
         memberId={viewingMemberId}
         onClose={() => setViewingMemberId(null)}
+        onEditCheckIn={(checkInId) => {
+          setEditingCheckInId(checkInId);
+          setEditingMemberId(viewingMemberId);
+          setViewingMemberId(null);
+        }}
+        onDeleteCheckIn={handleDeleteCheckIn}
       />
     );
   }
