@@ -78,11 +78,14 @@ export default function Auth() {
           </div>
 
           {error && (
-            <div className={`text-sm p-3 rounded-lg ${
-              error.includes('created')
-                ? 'bg-green-50 text-green-700'
-                : 'bg-red-50 text-red-700'
-            }`}>
+            <div
+              role="alert"
+              className={`text-sm p-3 rounded-lg ${
+                error.includes('created')
+                  ? 'bg-green-50 text-green-700'
+                  : 'bg-red-50 text-red-700'
+              }`}
+            >
               {error}
             </div>
           )}

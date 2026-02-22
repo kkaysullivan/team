@@ -56,21 +56,6 @@ export type Database = {
         Insert: Omit<Database['public']['Tables']['performance_reviews']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['performance_reviews']['Insert']>;
       };
-      one_on_ones: {
-        Row: {
-          id: string;
-          team_member_id: string;
-          manager_id: string;
-          meeting_date: string;
-          notes: string | null;
-          action_items: string | null;
-          mood: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database['public']['Tables']['one_on_ones']['Row'], 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Database['public']['Tables']['one_on_ones']['Insert']>;
-      };
     };
   };
 };

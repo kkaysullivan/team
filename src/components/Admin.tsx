@@ -7,12 +7,16 @@ import AdminRoles from './admin/AdminRoles';
 import AdminMaturityModels from './admin/AdminMaturityModels';
 import AdminTeamMembers from './admin/AdminTeamMembers';
 import AdminProfile from './admin/AdminProfile';
+import AdminCheckIns from './admin/AdminCheckIns';
+import AdminCheckInPrep from './admin/AdminCheckInPrep';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('members');
 
   const tabs = [
     { id: 'members', label: 'Team Members' },
+    { id: 'checkins', label: 'Check-Ins' },
+    { id: 'checkin-prep', label: 'Check-In Prep' },
     { id: 'models', label: 'Maturity Models' },
     { id: 'roles', label: 'Roles' },
     { id: 'categories', label: 'Categories' },
@@ -25,6 +29,10 @@ export default function Admin() {
     switch (activeTab) {
       case 'members':
         return <AdminTeamMembers />;
+      case 'checkins':
+        return <AdminCheckIns />;
+      case 'checkin-prep':
+        return <AdminCheckInPrep />;
       case 'levels':
         return <AdminLevels />;
       case 'categories':

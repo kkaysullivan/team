@@ -20,10 +20,24 @@ export default function AdminLevels() {
     fetchLevels();
   }, []);
 
+  const getLevelOrder = (levelName: string): number => {
+    const order: { [key: string]: number } = {
+      'Associate': 1,
+      'Level 1': 2,
+      'Level 2': 3,
+      'Senior': 4,
+      'Lead': 5
+    };
+    return order[levelName] || 999;
+  };
+
   const fetchLevels = async () => {
     setLoading(true);
-    const { data } = await supabase.from('levels').select('*').order('created_at');
-    if (data) setLevels(data);
+    const { data } = await supabase.from('levels').select('*');
+    if (data) {
+      const sortedData = data.sort((a, b) => getLevelOrder(a.name) - getLevelOrder(b.name));
+      setLevels(sortedData);
+    }
     setLoading(false);
   };
 

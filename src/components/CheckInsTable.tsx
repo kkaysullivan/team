@@ -92,8 +92,7 @@ export default function CheckInsTable({ teamMemberId, showHeader = true, initial
         (checkIn) =>
           checkIn.team_member.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           checkIn.type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          checkIn.quarter?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (checkIn as any).one_on_one_notes?.toLowerCase().includes(searchQuery.toLowerCase())
+          checkIn.quarter?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -306,12 +305,6 @@ export default function CheckInsTable({ teamMemberId, showHeader = true, initial
                         <span className="text-slate-900">
                           {formatTitle(checkIn)}
                         </span>
-                        {(checkIn as any).one_on_one_notes && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700" title="Includes 1-on-1 notes">
-                            <MessageSquare className="w-3 h-3" />
-                            1-on-1
-                          </span>
-                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

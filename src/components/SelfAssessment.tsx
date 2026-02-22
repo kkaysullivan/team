@@ -46,6 +46,13 @@ interface Assessment {
 
 type ViewState = 'welcome' | 'assessing' | 'success';
 
+const LEVEL_ORDER = ['Associate', 'Level 1', 'Level 2', 'Senior', 'Lead'];
+
+const getLevelOrder = (levelName: string): number => {
+  const index = LEVEL_ORDER.indexOf(levelName);
+  return index === -1 ? 999 : index;
+};
+
 export default function SelfAssessment() {
   const [viewState, setViewState] = useState<ViewState>('welcome');
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
@@ -105,8 +112,7 @@ export default function SelfAssessment() {
     try {
       const { data: levelsData, error: levelsError } = await supabase
         .from('levels')
-        .select('*')
-        .order('name');
+        .select('*');
 
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('maturity_categories')
@@ -132,7 +138,12 @@ export default function SelfAssessment() {
         .select('skill_id, self_rating')
         .eq('team_member_id', memberId);
 
-      if (levelsData) setLevels(levelsData);
+      if (levelsData) {
+        const sortedLevels = levelsData.sort((a, b) =>
+          getLevelOrder(a.name) - getLevelOrder(b.name)
+        );
+        setLevels(sortedLevels);
+      }
       if (categoriesData) {
         setCategories(categoriesData);
       }

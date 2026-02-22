@@ -15,24 +15,43 @@ interface Category {
   name: string;
 }
 
+interface Level {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface SkillLevel {
+  id: string;
+  skill_id: string;
+  level_id: string;
+  description: string;
+  display_order: number;
+}
+
 interface SkillWithDetails extends Skill {
   categories: string[];
+  levels: SkillLevel[];
 }
 
 type SortField = 'name' | 'categories';
 type SortDirection = 'asc' | 'desc' | null;
 
+const LEVEL_ORDER = ['Associate', 'Level 1', 'Level 2', 'Senior', 'Lead'];
+
 export default function AdminSkills() {
   const [skills, setSkills] = useState<SkillWithDetails[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [allLevels, setAllLevels] = useState<Level[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState({ name: '', description: '' });
+  const [levelDescriptions, setLevelDescriptions] = useState<Record<string, string>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const [sortField, setSortField] = useState<SortField | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [sortField, setSortField] = useState<SortField | null>('categories');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   useEffect(() => {
     fetchData();
@@ -44,14 +63,26 @@ export default function AdminSkills() {
     const [
       { data: skillsData },
       { data: categoriesData },
-      { data: categorySkillsData }
+      { data: categorySkillsData },
+      { data: levelsData },
+      { data: skillLevelsData }
     ] = await Promise.all([
       supabase.from('maturity_skills').select('*').order('name'),
       supabase.from('maturity_categories').select('id, name').order('name'),
-      supabase.from('category_skills').select('skill_id, category_id, category:maturity_categories(name)')
+      supabase.from('category_skills').select('skill_id, category_id, category:maturity_categories(name)'),
+      supabase.from('levels').select('*').order('name'),
+      supabase.from('skill_levels').select('*')
     ]);
 
     if (categoriesData) setAllCategories(categoriesData);
+    if (levelsData) {
+      const sortedLevels = levelsData.sort((a, b) => {
+        const aIndex = LEVEL_ORDER.indexOf(a.name);
+        const bIndex = LEVEL_ORDER.indexOf(b.name);
+        return aIndex - bIndex;
+      });
+      setAllLevels(sortedLevels);
+    }
 
     if (skillsData) {
       const skillsWithDetails = skillsData.map(skill => {
@@ -60,9 +91,13 @@ export default function AdminSkills() {
           .map(cs => (cs.category as any)?.name)
           .filter(Boolean) || [];
 
+        const skillLevels = skillLevelsData
+          ?.filter(sl => sl.skill_id === skill.id) || [];
+
         return {
           ...skill,
-          categories: skillCategories
+          categories: skillCategories,
+          levels: skillLevels
         };
       });
       setSkills(skillsWithDetails);
@@ -100,11 +135,40 @@ export default function AdminSkills() {
       })
       .eq('id', id);
 
-    if (!error) {
-      setEditingId(null);
-      setFormData({ name: '', description: '' });
-      await fetchData();
+    if (error) {
+      alert(`Failed to update skill: ${error.message}`);
+      return;
     }
+
+    for (const level of allLevels) {
+      const existingLevel = skills
+        .find(s => s.id === id)
+        ?.levels.find(l => l.level_id === level.id);
+
+      const description = levelDescriptions[level.id] || '';
+
+      if (existingLevel) {
+        await supabase
+          .from('skill_levels')
+          .update({ description })
+          .eq('id', existingLevel.id);
+      } else if (description.trim()) {
+        const maxOrder = allLevels.findIndex(l => l.id === level.id);
+        await supabase
+          .from('skill_levels')
+          .insert({
+            skill_id: id,
+            level_id: level.id,
+            description,
+            display_order: maxOrder
+          });
+      }
+    }
+
+    setEditingId(null);
+    setFormData({ name: '', description: '' });
+    setLevelDescriptions({});
+    await fetchData();
   };
 
   const handleDelete = async (id: string) => {
@@ -123,12 +187,27 @@ export default function AdminSkills() {
     setEditingId(skill.id);
     setFormData({ name: skill.name, description: skill.description });
     setIsAdding(false);
+
+    const descriptions: Record<string, string> = {};
+    allLevels.forEach(level => {
+      const skillLevel = skill.levels.find(l => l.level_id === level.id);
+      descriptions[level.id] = skillLevel?.description || '';
+    });
+    setLevelDescriptions(descriptions);
+
+    setTimeout(() => {
+      const editForm = document.getElementById('skill-edit-form');
+      if (editForm) {
+        editForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setIsAdding(false);
     setFormData({ name: '', description: '' });
+    setLevelDescriptions({});
   };
 
   const handleSort = (field: SortField) => {
@@ -277,8 +356,12 @@ export default function AdminSkills() {
       )}
 
       {editingId && (
-        <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-          <div className="space-y-3">
+        <div
+          id="skill-edit-form"
+          className="border-2 border-blue-300 rounded-lg p-6 bg-blue-50 shadow-md"
+        >
+          <h4 className="text-lg font-semibold text-blue-900 mb-4">Edit Skill</h4>
+          <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
               <input
@@ -286,6 +369,7 @@ export default function AdminSkills() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                autoFocus
               />
             </div>
             <div>
@@ -299,13 +383,39 @@ export default function AdminSkills() {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            <div className="flex gap-2">
+
+            <div className="border-t border-blue-200 pt-4 mt-4">
+              <h5 className="text-sm font-semibold text-slate-900 mb-3">Level Descriptions</h5>
+              <div className="space-y-4">
+                {allLevels.map((level) => (
+                  <div key={level.id}>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      {level.name}
+                    </label>
+                    <textarea
+                      value={levelDescriptions[level.id] || ''}
+                      onChange={(e) =>
+                        setLevelDescriptions({
+                          ...levelDescriptions,
+                          [level.id]: e.target.value,
+                        })
+                      }
+                      rows={3}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      placeholder={`Describe expectations for ${level.name}...`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4">
               <button
                 onClick={() => handleUpdate(editingId)}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 <Save className="w-4 h-4" />
-                Save
+                Save Changes
               </button>
               <button
                 onClick={cancelEdit}

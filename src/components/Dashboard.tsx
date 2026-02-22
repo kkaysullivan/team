@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { CircleUser as UserCircle, Users, MessageSquare, ClipboardCheck, Plus, Edit, Trash2, ArrowUpDown, ExternalLink } from 'lucide-react';
 import type { Database } from '../lib/supabase';
-import CadenceComplianceTracker from './CadenceComplianceTracker';
 import CheckInForm from './CheckInForm';
 
 type TeamMember = Database['public']['Tables']['team_members']['Row'];
@@ -79,8 +78,14 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
   const handleDeleteCheckIn = async (id: string) => {
     if (!confirm('Are you sure you want to delete this check-in?')) return;
 
-    await supabase.from('performance_reviews').delete().eq('id', id);
-    fetchCheckIns();
+    try {
+      const { error } = await supabase.from('performance_reviews').delete().eq('id', id);
+      if (error) throw error;
+      fetchCheckIns();
+    } catch (error) {
+      console.error('Error deleting check-in:', error);
+      alert('Failed to delete check-in. Please try again.');
+    }
   };
 
   const handleEditCheckIn = (checkIn: CheckIn) => {
@@ -236,8 +241,6 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
         )}
       </div>
 
-      <CadenceComplianceTracker />
-
       <div className="mt-8 mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-slate-50">
@@ -333,12 +336,6 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
                             <span className="text-slate-900">
                               {formatTitle(checkIn)}
                             </span>
-                            {(checkIn as any).one_on_one_notes && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700" title="Includes 1-on-1 notes">
-                                <MessageSquare className="w-3 h-3" />
-                                1-on-1
-                              </span>
-                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

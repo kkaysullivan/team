@@ -52,6 +52,13 @@ interface MaturityModelProps {
   teamMemberId?: string;
 }
 
+const LEVEL_ORDER = ['Associate', 'Level 1', 'Level 2', 'Senior', 'Lead'];
+
+const getLevelOrder = (levelName: string): number => {
+  const index = LEVEL_ORDER.indexOf(levelName);
+  return index === -1 ? 999 : index;
+};
+
 const getCategoryIcon = (categoryName: string) => {
   const iconMap: Record<string, any> = {
     'Business Acumen': Briefcase,
@@ -148,7 +155,7 @@ export default function MaturityModel({ teamMemberId }: MaturityModelProps) {
         `)
         .eq('maturity_model_id', roleData.maturity_model_id)
         .order('display_order'),
-      supabase.from('levels').select('id, name').order('created_at'),
+      supabase.from('levels').select('id, name'),
     ]);
 
     if (modelResult.data) {
@@ -195,9 +202,12 @@ export default function MaturityModel({ teamMemberId }: MaturityModelProps) {
         }
 
         if (skillLevelsResult.data && levelsResult.data) {
+          const sortedLevels = levelsResult.data.sort((a: any, b: any) =>
+            getLevelOrder(a.name) - getLevelOrder(b.name)
+          );
           const enriched = skillLevelsResult.data.map((sl: any) => ({
             ...sl,
-            level_name: levelsResult.data.find((l: any) => l.id === sl.level_id)?.name,
+            level_name: sortedLevels.find((l: any) => l.id === sl.level_id)?.name,
           }));
           setSkillLevels(enriched);
         }

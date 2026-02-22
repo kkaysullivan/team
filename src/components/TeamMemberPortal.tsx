@@ -26,15 +26,6 @@ interface CheckIn {
   areas_for_improvement: string | null;
 }
 
-interface OneOnOne {
-  id: string;
-  meeting_date: string;
-  topics: any;
-  notes: string | null;
-  action_items: string | null;
-  status: string;
-}
-
 interface KRA {
   id: string;
   year: number;
@@ -46,7 +37,6 @@ export default function TeamMemberPortal() {
   const { user, signOut } = useAuth();
   const [teamMember, setTeamMember] = useState<TeamMember | null>(null);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
-  const [oneOnOnes, setOneOnOnes] = useState<OneOnOne[]>([]);
   const [kras, setKras] = useState<KRA[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState<'overview' | 'maturity' | 'growth' | 'preferences'>('overview');
@@ -89,16 +79,6 @@ export default function TeamMemberPortal() {
       .limit(5);
 
     if (checkInsData) setCheckIns(checkInsData);
-
-    // Fetch one-on-ones
-    const { data: oneOnOnesData } = await supabase
-      .from('one_on_ones')
-      .select('*')
-      .eq('team_member_id', memberData.id)
-      .order('meeting_date', { ascending: false })
-      .limit(5);
-
-    if (oneOnOnesData) setOneOnOnes(oneOnOnesData);
 
     // Fetch KRAs
     const { data: krasData } = await supabase
@@ -261,38 +241,6 @@ export default function TeamMemberPortal() {
                             <p className="text-sm text-slate-600">
                               <strong>Areas for Improvement:</strong> {checkIn.areas_for_improvement}
                             </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                <section>
-                  <h2 className="text-xl font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5" />
-                    Recent One-on-Ones
-                  </h2>
-                  {oneOnOnes.length === 0 ? (
-                    <p className="text-slate-500">No one-on-ones yet</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {oneOnOnes.map((oneOnOne) => (
-                        <div key={oneOnOne.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="font-medium text-slate-900">
-                              {new Date(oneOnOne.meeting_date).toLocaleDateString()}
-                            </span>
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              oneOnOne.status === 'completed'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-blue-100 text-blue-700'
-                            }`}>
-                              {oneOnOne.status}
-                            </span>
-                          </div>
-                          {oneOnOne.notes && (
-                            <p className="text-sm text-slate-600">{oneOnOne.notes}</p>
                           )}
                         </div>
                       ))}
