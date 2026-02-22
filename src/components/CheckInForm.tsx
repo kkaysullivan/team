@@ -417,6 +417,34 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
             </>
           )}
 
+          {formData.type === 'quarterly' && formData.team_member_id && selectedMemberName && (
+            <>
+              <AccordionSection
+                title="Maturity Model Snapshot"
+                sectionKey="maturity"
+                onUpdate={() => updateSection({ maturity_snapshot: annualData.maturity_snapshot })}
+              >
+                <MaturitySnapshot
+                  data={annualData.maturity_snapshot}
+                  onChange={(data) => setAnnualData({ ...annualData, maturity_snapshot: data })}
+                  teamMemberId={formData.team_member_id}
+                />
+              </AccordionSection>
+
+              <AccordionSection
+                title="Growth Areas"
+                sectionKey="growth"
+                onUpdate={() => updateSection({ growth_areas: annualData.growth_areas })}
+              >
+                <GrowthAreasSection
+                  data={annualData.growth_areas}
+                  onChange={(data) => setAnnualData({ ...annualData, growth_areas: data })}
+                  teamMemberId={formData.team_member_id}
+                />
+              </AccordionSection>
+            </>
+          )}
+
           {!existingData?.id && (
             <div className="flex gap-3 pt-4">
               <button
