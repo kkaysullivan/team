@@ -18,6 +18,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const initAuth = async () => {
       try {
@@ -30,17 +31,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (mounted) {
           setUser(session?.user ?? null);
           setLoading(false);
+          if (timeoutId) clearTimeout(timeoutId);
         }
       } catch (error) {
         console.error('[Auth] Error initializing:', error);
         if (mounted) {
           setUser(null);
           setLoading(false);
+          if (timeoutId) clearTimeout(timeoutId);
         }
       }
     };
 
-    const timeoutId = setTimeout(() => {
+    timeoutId = setTimeout(() => {
       if (mounted && loading) {
         setUser(null);
         setLoading(false);
@@ -49,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (mounted) {
         setUser(session?.user ?? null);
       }
@@ -57,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []);

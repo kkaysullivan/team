@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, ChevronDown, ChevronUp, FileDown } from 'lucide-react';
@@ -30,6 +30,62 @@ const initialReflectionData = {
   impact_areas: { team_member: '', leader: '' }
 };
 
+interface AccordionSectionProps {
+  title: string;
+  sectionKey: string;
+  children: React.ReactNode;
+  onUpdate?: () => void;
+  expandedSections: Record<string, boolean>;
+  toggleSection: (key: string) => void;
+  loading: boolean;
+  existingDataId?: string;
+}
+
+function AccordionSection({
+  title,
+  sectionKey,
+  children,
+  onUpdate,
+  expandedSections,
+  toggleSection,
+  loading,
+  existingDataId
+}: AccordionSectionProps) {
+  return (
+    <div className="border border-slate-200 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => toggleSection(sectionKey)}
+        className="w-full px-6 py-4 flex items-center justify-between bg-slate-50 hover:bg-slate-100 transition"
+      >
+        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+        {expandedSections[sectionKey] ? (
+          <ChevronUp className="w-5 h-5 text-slate-600" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-slate-600" />
+        )}
+      </button>
+      {expandedSections[sectionKey] && (
+        <div className="p-6 bg-white">
+          {children}
+          {onUpdate && existingDataId && (
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={onUpdate}
+                disabled={loading}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {loading ? 'Updating...' : 'Update Section'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CheckInForm({ teamMemberId, existingData, onSave, onCancel }: CheckInFormProps) {
   const { user } = useAuth();
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -51,12 +107,14 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
     review_date: existingData?.review_date || new Date().toISOString().split('T')[0],
   });
 
-  const [annualData, setAnnualData] = useState({
-    reflection_questions: (existingData?.reflection_questions as any) || initialReflectionData,
-    peer_feedback: (existingData?.peer_feedback as any) || [],
-    maturity_snapshot: (existingData?.maturity_snapshot as any) || [],
-    growth_areas: (existingData?.growth_areas as any) || []
-  });
+  const [reflectionQuestions, setReflectionQuestions] = useState((existingData?.reflection_questions as any) || initialReflectionData);
+  const [peerFeedback, setPeerFeedback] = useState((existingData?.peer_feedback as any) || []);
+  const [maturitySnapshot, setMaturitySnapshot] = useState((existingData?.maturity_snapshot as any) || []);
+  const [growthAreas, setGrowthAreas] = useState((existingData?.growth_areas as any) || []);
+
+  const handlePeerFeedbackChange = useCallback((data: any) => {
+    setPeerFeedback(data);
+  }, []);
 
   const getQuarterFromDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -154,10 +212,10 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
       } else {
         data.quarter = null;
         data.year = calculatedYear;
-        data.reflection_questions = annualData.reflection_questions;
-        data.peer_feedback = annualData.peer_feedback;
-        data.maturity_snapshot = annualData.maturity_snapshot;
-        data.growth_areas = annualData.growth_areas;
+        data.reflection_questions = reflectionQuestions;
+        data.peer_feedback = peerFeedback;
+        data.maturity_snapshot = maturitySnapshot;
+        data.growth_areas = growthAreas;
       }
 
       if (existingData?.id) {
@@ -198,60 +256,16 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
         teamMemberName: selectedMemberName,
         reviewDate: formData.review_date,
         managerName: managerData?.full_name || user.email || 'Manager',
-        reflectionQuestions: annualData.reflection_questions,
-        peerFeedback: annualData.peer_feedback,
-        maturitySnapshot: annualData.maturity_snapshot,
-        growthAreas: annualData.growth_areas,
+        reflectionQuestions: reflectionQuestions,
+        peerFeedback: peerFeedback,
+        maturitySnapshot: maturitySnapshot,
+        growthAreas: growthAreas,
       });
     } catch (error) {
       console.error('Error exporting to Word:', error);
       alert('Failed to export document. Please try again.');
     }
   };
-
-  const AccordionSection = ({
-    title,
-    sectionKey,
-    children,
-    onUpdate
-  }: {
-    title: string;
-    sectionKey: string;
-    children: React.ReactNode;
-    onUpdate?: () => void;
-  }) => (
-    <div className="border border-slate-200 rounded-lg overflow-hidden">
-      <button
-        type="button"
-        onClick={() => toggleSection(sectionKey)}
-        className="w-full px-6 py-4 flex items-center justify-between bg-slate-50 hover:bg-slate-100 transition"
-      >
-        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-        {expandedSections[sectionKey] ? (
-          <ChevronUp className="w-5 h-5 text-slate-600" />
-        ) : (
-          <ChevronDown className="w-5 h-5 text-slate-600" />
-        )}
-      </button>
-      {expandedSections[sectionKey] && (
-        <div className="p-6 bg-white">
-          {children}
-          {onUpdate && existingData?.id && (
-            <div className="mt-6 pt-6 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={onUpdate}
-                disabled={loading}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-              >
-                {loading ? 'Updating...' : 'Update Section'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -353,52 +367,61 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
 
         <div className="space-y-4">
 
-          {formData.type === 'annual' && formData.team_member_id && selectedMemberName && (
+          {formData.type === 'annual' && formData.team_member_id && (
             <>
-              <AnnualCheckInChecklist
-                teamMemberId={formData.team_member_id}
-                teamMemberName={selectedMemberName}
-                anniversaryDate={selectedMemberAnniversary}
-                checkinId={existingData?.id}
-                reviewDate={formData.review_date}
-              />
-            </>
-          )}
-
-          {formData.type === 'annual' && formData.team_member_id && selectedMemberName && (
-            <>
+              {selectedMemberName && (
+                <AnnualCheckInChecklist
+                  teamMemberId={formData.team_member_id}
+                  teamMemberName={selectedMemberName}
+                  anniversaryDate={selectedMemberAnniversary}
+                  checkinId={existingData?.id}
+                  reviewDate={formData.review_date}
+                />
+              )}
 
               <AccordionSection
                 title="Reflection Questions"
                 sectionKey="reflection"
-                onUpdate={() => updateSection({ reflection_questions: annualData.reflection_questions })}
+                onUpdate={() => updateSection({ reflection_questions: reflectionQuestions })}
+                expandedSections={expandedSections}
+                toggleSection={toggleSection}
+                loading={loading}
+                existingDataId={existingData?.id}
               >
                 <ReflectionQuestions
-                  data={annualData.reflection_questions}
-                  onChange={(data) => setAnnualData({ ...annualData, reflection_questions: data })}
+                  data={reflectionQuestions}
+                  onChange={setReflectionQuestions}
                 />
               </AccordionSection>
 
               <AccordionSection
                 title="Peer Feedback"
                 sectionKey="peer"
-                onUpdate={() => updateSection({ peer_feedback: annualData.peer_feedback })}
+                onUpdate={() => updateSection({ peer_feedback: peerFeedback })}
+                expandedSections={expandedSections}
+                toggleSection={toggleSection}
+                loading={loading}
+                existingDataId={existingData?.id}
               >
                 <PeerFeedback
-                  data={annualData.peer_feedback}
-                  onChange={(data) => setAnnualData({ ...annualData, peer_feedback: data })}
-                  teamMemberName={selectedMemberName}
+                  data={peerFeedback}
+                  onChange={handlePeerFeedbackChange}
+                  teamMemberName={selectedMemberName || 'Team Member'}
                 />
               </AccordionSection>
 
               <AccordionSection
                 title="Maturity Model Snapshot"
                 sectionKey="maturity"
-                onUpdate={() => updateSection({ maturity_snapshot: annualData.maturity_snapshot })}
+                onUpdate={() => updateSection({ maturity_snapshot: maturitySnapshot })}
+                expandedSections={expandedSections}
+                toggleSection={toggleSection}
+                loading={loading}
+                existingDataId={existingData?.id}
               >
                 <MaturitySnapshot
-                  data={annualData.maturity_snapshot}
-                  onChange={(data) => setAnnualData({ ...annualData, maturity_snapshot: data })}
+                  data={maturitySnapshot}
+                  onChange={setMaturitySnapshot}
                   teamMemberId={formData.team_member_id}
                 />
               </AccordionSection>
@@ -406,27 +429,35 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
               <AccordionSection
                 title="Growth Areas"
                 sectionKey="growth"
-                onUpdate={() => updateSection({ growth_areas: annualData.growth_areas })}
+                onUpdate={() => updateSection({ growth_areas: growthAreas })}
+                expandedSections={expandedSections}
+                toggleSection={toggleSection}
+                loading={loading}
+                existingDataId={existingData?.id}
               >
                 <GrowthAreasSection
-                  data={annualData.growth_areas}
-                  onChange={(data) => setAnnualData({ ...annualData, growth_areas: data })}
+                  data={growthAreas}
+                  onChange={setGrowthAreas}
                   teamMemberId={formData.team_member_id}
                 />
               </AccordionSection>
             </>
           )}
 
-          {formData.type === 'quarterly' && formData.team_member_id && selectedMemberName && (
+          {formData.type === 'quarterly' && formData.team_member_id && (
             <>
               <AccordionSection
                 title="Maturity Model Snapshot"
                 sectionKey="maturity"
-                onUpdate={() => updateSection({ maturity_snapshot: annualData.maturity_snapshot })}
+                onUpdate={() => updateSection({ maturity_snapshot: maturitySnapshot })}
+                expandedSections={expandedSections}
+                toggleSection={toggleSection}
+                loading={loading}
+                existingDataId={existingData?.id}
               >
                 <MaturitySnapshot
-                  data={annualData.maturity_snapshot}
-                  onChange={(data) => setAnnualData({ ...annualData, maturity_snapshot: data })}
+                  data={maturitySnapshot}
+                  onChange={setMaturitySnapshot}
                   teamMemberId={formData.team_member_id}
                 />
               </AccordionSection>
@@ -434,11 +465,15 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
               <AccordionSection
                 title="Growth Areas"
                 sectionKey="growth"
-                onUpdate={() => updateSection({ growth_areas: annualData.growth_areas })}
+                onUpdate={() => updateSection({ growth_areas: growthAreas })}
+                expandedSections={expandedSections}
+                toggleSection={toggleSection}
+                loading={loading}
+                existingDataId={existingData?.id}
               >
                 <GrowthAreasSection
-                  data={annualData.growth_areas}
-                  onChange={(data) => setAnnualData({ ...annualData, growth_areas: data })}
+                  data={growthAreas}
+                  onChange={setGrowthAreas}
                   teamMemberId={formData.team_member_id}
                 />
               </AccordionSection>

@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, memo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Home, LogOut, Menu, X, Settings } from 'lucide-react';
 
@@ -8,7 +8,7 @@ interface LayoutProps {
   onViewChange: (view: string) => void;
 }
 
-export default function Layout({ children, currentView, onViewChange }: LayoutProps) {
+function Layout({ children, currentView, onViewChange }: LayoutProps) {
   const { signOut, user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -17,14 +17,14 @@ export default function Layout({ children, currentView, onViewChange }: LayoutPr
     { id: 'admin', label: 'Admin', icon: Settings },
   ];
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     await signOut();
-  };
+  }, [signOut]);
 
-  const handleMenuClick = (view: string) => {
+  const handleMenuClick = useCallback((view: string) => {
     onViewChange(view);
     setMobileMenuOpen(false);
-  };
+  }, [onViewChange]);
 
   return (
     <div className="flex flex-col h-screen bg-slate-50">
@@ -121,3 +121,4 @@ export default function Layout({ children, currentView, onViewChange }: LayoutPr
     </div>
   );
 }
+export default memo(Layout);

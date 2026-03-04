@@ -1,11 +1,11 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './lib/supabase';
-import Auth from './components/Auth';
-import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
 import ErrorBoundary from './components/ErrorBoundary';
 
+const Auth = lazy(() => import('./components/Auth'));
+const Layout = lazy(() => import('./components/Layout'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
 const TeamMemberDetail = lazy(() => import('./components/TeamMemberDetail'));
 const TeamMemberDashboard = lazy(() => import('./components/TeamMemberDashboard'));
 const Admin = lazy(() => import('./components/Admin'));
@@ -30,17 +30,19 @@ function AppContent() {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const detectUserRole = async () => {
       if (!user) {
         if (mounted) {
           setRoleLoading(false);
+          if (timeoutId) clearTimeout(timeoutId);
         }
         return;
       }
 
       try {
-        const { data: teamMemberData, error: teamMemberError } = await supabase
+        const { data: teamMemberData } = await supabase
           .from('team_members')
           .select('id')
           .eq('user_id', user.id)
@@ -51,10 +53,11 @@ function AppContent() {
         if (teamMemberData) {
           setUserRole('team_member');
           setRoleLoading(false);
+          if (timeoutId) clearTimeout(timeoutId);
           return;
         }
 
-        const { data: managerData, error: managerError } = await supabase
+        const { data: managerData } = await supabase
           .from('team_members')
           .select('id')
           .eq('manager_id', user.id)
@@ -65,17 +68,19 @@ function AppContent() {
           const role = managerData ? 'manager' : 'manager';
           setUserRole(role);
           setRoleLoading(false);
+          if (timeoutId) clearTimeout(timeoutId);
         }
       } catch (error) {
         console.error('[Role Detection] Error:', error);
         if (mounted) {
           setUserRole('manager');
           setRoleLoading(false);
+          if (timeoutId) clearTimeout(timeoutId);
         }
       }
     };
 
-    const timeoutId = setTimeout(() => {
+    timeoutId = setTimeout(() => {
       if (mounted && roleLoading) {
         setUserRole('manager');
         setRoleLoading(false);
@@ -86,7 +91,7 @@ function AppContent() {
 
     return () => {
       mounted = false;
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [user]);
 
@@ -116,7 +121,15 @@ function AppContent() {
   }
 
   if (!user) {
-    return <Auth />;
+    return (
+      <Suspense fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      }>
+        <Auth />
+      </Suspense>
+    );
   }
 
   // Show team member portal if user is a team member
@@ -157,6 +170,12 @@ function AppContent() {
     await supabase.from('performance_reviews').delete().eq('id', checkInId);
     setCurrentView('dashboard');
   };
+
+  const LoadingFallback = () => (
+    <div className="flex items-center justify-center p-12">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  );
 
   const renderView = () => {
     switch (currentView) {
@@ -221,18 +240,18 @@ function AppContent() {
     }
   };
 
-  const LoadingFallback = () => (
-    <div className="flex items-center justify-center p-12">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-    </div>
-  );
-
   return (
-    <Layout currentView={currentView} onViewChange={setCurrentView}>
-      <Suspense fallback={<LoadingFallback />}>
-        {renderView()}
-      </Suspense>
-    </Layout>
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <Layout currentView={currentView} onViewChange={setCurrentView}>
+        <Suspense fallback={<LoadingFallback />}>
+          {renderView()}
+        </Suspense>
+      </Layout>
+    </Suspense>
   );
 }
 
