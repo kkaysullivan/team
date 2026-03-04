@@ -397,7 +397,6 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
               <AccordionSection
                 title="Peer Feedback"
                 sectionKey="peer"
-                onUpdate={() => updateSection({ peer_feedback: peerFeedback })}
                 expandedSections={expandedSections}
                 toggleSection={toggleSection}
                 loading={loading}
@@ -407,6 +406,7 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
                   data={peerFeedback}
                   onChange={handlePeerFeedbackChange}
                   teamMemberName={selectedMemberName || 'Team Member'}
+                  checkInId={existingData?.id}
                 />
               </AccordionSection>
 
