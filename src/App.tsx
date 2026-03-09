@@ -8,7 +8,6 @@ const Layout = lazy(() => import('./components/Layout'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const TeamMemberDetail = lazy(() => import('./components/TeamMemberDetail'));
 const TeamMemberDashboard = lazy(() => import('./components/TeamMemberDashboard'));
-const Admin = lazy(() => import('./components/Admin'));
 const AllCheckIns = lazy(() => import('./components/AllCheckIns'));
 const SelfAssessment = lazy(() => import('./components/SelfAssessment'));
 const TeamMemberPortal = lazy(() => import('./components/TeamMemberPortal'));
@@ -233,8 +232,6 @@ function AppContent() {
         );
       case 'check-ins':
         return <AllCheckIns onBack={handleBackToDashboard} />;
-      case 'admin':
-        return <Admin />;
       default:
         return <Dashboard onSelectMember={handleSelectMember} onNavigate={setCurrentView} />;
     }

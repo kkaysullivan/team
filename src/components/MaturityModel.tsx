@@ -181,7 +181,7 @@ export default function MaturityModel({ teamMemberId }: MaturityModelProps) {
       const categoryIds = cats.map((c: Category) => c.id);
       if (categoryIds.length > 0) {
         const [categorySkillsResult, skillsResult, skillLevelsResult] = await Promise.all([
-          supabase.from('category_skills').select('*').in('category_id', categoryIds),
+          supabase.from('category_skills').select('*').in('category_id', categoryIds).order('display_order'),
           supabase.from('maturity_skills').select('*'),
           supabase.from('skill_levels').select('*').order('display_order'),
         ]);

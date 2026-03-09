@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit2, Trash2, TrendingUp, Calendar, Star } from 'lucide-react';
+import { Plus, Pencil, Trash2, TrendingUp, Calendar, Star } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import DOMPurify from 'dompurify';
@@ -537,7 +537,7 @@ export default function GrowthAreas({ teamMemberId }: GrowthAreasProps) {
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                       title="Edit"
                     >
-                      <Edit2 className="w-4 h-4" />
+                      <Pencil className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(area.id)}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit2, Trash2, Save, X, ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, X, ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
 
 interface Skill {
   id: string;
@@ -127,48 +127,75 @@ export default function AdminSkills() {
   };
 
   const handleUpdate = async (id: string) => {
-    const { error } = await supabase
-      .from('maturity_skills')
-      .update({
-        name: formData.name,
-        description: formData.description,
-      })
-      .eq('id', id);
+    try {
+      const { error: skillError } = await supabase
+        .from('maturity_skills')
+        .update({
+          name: formData.name,
+          description: formData.description,
+        })
+        .eq('id', id);
 
-    if (error) {
-      alert(`Failed to update skill: ${error.message}`);
-      return;
-    }
-
-    for (const level of allLevels) {
-      const existingLevel = skills
-        .find(s => s.id === id)
-        ?.levels.find(l => l.level_id === level.id);
-
-      const description = levelDescriptions[level.id] || '';
-
-      if (existingLevel) {
-        await supabase
-          .from('skill_levels')
-          .update({ description })
-          .eq('id', existingLevel.id);
-      } else if (description.trim()) {
-        const maxOrder = allLevels.findIndex(l => l.id === level.id);
-        await supabase
-          .from('skill_levels')
-          .insert({
-            skill_id: id,
-            level_id: level.id,
-            description,
-            display_order: maxOrder
-          });
+      if (skillError) {
+        alert(`Failed to update skill: ${skillError.message}`);
+        return;
       }
-    }
 
-    setEditingId(null);
-    setFormData({ name: '', description: '' });
-    setLevelDescriptions({});
-    await fetchData();
+      for (const level of allLevels) {
+        const existingLevel = skills
+          .find(s => s.id === id)
+          ?.levels.find(l => l.level_id === level.id);
+
+        const description = levelDescriptions[level.id]?.trim() || '';
+
+        if (existingLevel) {
+          if (description) {
+            const { error: updateError } = await supabase
+              .from('skill_levels')
+              .update({ description })
+              .eq('id', existingLevel.id);
+
+            if (updateError) {
+              console.error('Failed to update skill level:', updateError);
+              alert(`Failed to update level ${level.name}: ${updateError.message}`);
+            }
+          } else {
+            const { error: deleteError } = await supabase
+              .from('skill_levels')
+              .delete()
+              .eq('id', existingLevel.id);
+
+            if (deleteError) {
+              console.error('Failed to delete empty skill level:', deleteError);
+            }
+          }
+        } else if (description) {
+          const maxOrder = allLevels.findIndex(l => l.id === level.id);
+          const { error: insertError } = await supabase
+            .from('skill_levels')
+            .insert({
+              skill_id: id,
+              level_id: level.id,
+              description,
+              display_order: maxOrder
+            });
+
+          if (insertError) {
+            console.error('Failed to insert skill level:', insertError);
+            alert(`Failed to add level ${level.name}: ${insertError.message}`);
+          }
+        }
+      }
+
+      setEditingId(null);
+      setFormData({ name: '', description: '' });
+      setLevelDescriptions({});
+      await fetchData();
+      alert('Skill updated successfully!');
+    } catch (err) {
+      console.error('Error updating skill:', err);
+      alert('An unexpected error occurred while updating the skill.');
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -487,7 +514,7 @@ export default function AdminSkills() {
                       onClick={() => startEdit(skill)}
                       className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     >
-                      <Edit2 className="w-4 h-4" />
+                      <Pencil className="w-4 h-4" />
                       <span className="text-sm font-medium">Edit</span>
                     </button>
                     <button

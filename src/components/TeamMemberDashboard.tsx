@@ -1,21 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import {
-  ArrowLeft,
-  UserCircle,
-  TrendingUp,
-  FileText,
-  Calendar,
-  BarChart3,
-  Gift,
-  ExternalLink,
-  ChevronRight,
-  AlertTriangle,
-  CheckCircle2,
-  TrendingDown,
-  Edit,
-  Trash2
-} from 'lucide-react';
+import { ArrowLeft, CircleUser as UserCircle, TrendingUp, FileText, Calendar, BarChart3, Gift, ExternalLink, ChevronRight, AlertTriangle, CheckCircle2, TrendingDown, Pencil, Trash2, Plus, Clock, Activity, Target } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import type { Database } from '../lib/supabase';
 
@@ -49,6 +34,9 @@ export default function TeamMemberDashboard({ memberId, onClose, onViewSection, 
   const [maturityData, setMaturityData] = useState<any>(null);
   const [preferences, setPreferences] = useState<Preference[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recentCheckIns, setRecentCheckIns] = useState<CheckIn[]>([]);
+  const [maturityHistory, setMaturityHistory] = useState<any[]>([]);
+  const [healthMetrics, setHealthMetrics] = useState<any>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -57,7 +45,7 @@ export default function TeamMemberDashboard({ memberId, onClose, onViewSection, 
   const fetchDashboardData = async () => {
     setLoading(true);
 
-    const [memberData, growthData, kraData, checkInData, maturityModelData, preferencesData] = await Promise.all([
+    const [memberData, growthData, kraData, checkInData, maturityModelData, preferencesData, recentCheckInsData, allMaturityData] = await Promise.all([
       supabase
         .from('team_members')
         .select('*, roles(name)')
@@ -112,7 +100,22 @@ export default function TeamMemberDashboard({ memberId, onClose, onViewSection, 
         .select('*')
         .eq('team_member_id', memberId)
         .in('category', ['Birthday', 'Ramseyversary'])
-        .order('display_order', { ascending: true })
+        .order('display_order', { ascending: true }),
+
+      supabase
+        .from('performance_reviews')
+        .select('*')
+        .eq('team_member_id', memberId)
+        .lte('review_date', new Date().toISOString().split('T')[0])
+        .order('review_date', { ascending: false })
+        .limit(5),
+
+      supabase
+        .from('maturity_assessments')
+        .select('assessed_at, leader_rating')
+        .eq('team_member_id', memberId)
+        .not('leader_rating', 'is', null)
+        .order('assessed_at', { ascending: true })
     ]);
 
     if (memberData.data) setMember(memberData.data);
@@ -120,6 +123,70 @@ export default function TeamMemberDashboard({ memberId, onClose, onViewSection, 
     if (kraData.data) setCurrentKRA(kraData.data);
     if (checkInData.data) setUpcomingCheckIn(checkInData.data);
     if (preferencesData.data) setPreferences(preferencesData.data);
+    if (recentCheckInsData.data) setRecentCheckIns(recentCheckInsData.data);
+
+    if (allMaturityData.data && allMaturityData.data.length > 0) {
+      const levelScoreMap: Record<string, number> = {
+        '10000000-0000-0000-0000-000000000001': 0,
+        '10000000-0000-0000-0000-000000000002': 1,
+        '10000000-0000-0000-0000-000000000003': 2,
+        '10000000-0000-0000-0000-000000000004': 3,
+        '10000000-0000-0000-0000-000000000005': 4,
+      };
+
+      const historyByMonth = allMaturityData.data.reduce((acc: any, assessment: any) => {
+        const month = new Date(assessment.assessed_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        if (!acc[month]) {
+          acc[month] = { total: 0, count: 0 };
+        }
+        const score = levelScoreMap[assessment.leader_rating] ?? 0;
+        acc[month].total += score;
+        acc[month].count += 1;
+        return acc;
+      }, {});
+
+      const history = Object.entries(historyByMonth)
+        .map(([month, data]: [string, any]) => ({
+          month,
+          average: data.count > 0 ? data.total / data.count : 0
+        }))
+        .slice(-6);
+
+      setMaturityHistory(history);
+    }
+
+    const now = new Date();
+    const lastCheckInDate = recentCheckInsData.data && recentCheckInsData.data.length > 0
+      ? new Date(recentCheckInsData.data[0].review_date + 'T00:00:00')
+      : null;
+    const daysSinceLastCheckIn = lastCheckInDate
+      ? Math.floor((now.getTime() - lastCheckInDate.getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+
+    const lastAssessmentDate = maturityModelData.data && maturityModelData.data.length > 0
+      ? new Date(maturityModelData.data[0].assessed_at)
+      : null;
+    const daysSinceLastAssessment = lastAssessmentDate
+      ? Math.floor((now.getTime() - lastAssessmentDate.getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+
+    const kraEndDate = kraData.data?.end_date ? new Date(kraData.data.end_date + 'T00:00:00') : null;
+    const daysUntilKRAExpires = kraEndDate
+      ? Math.floor((kraEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+
+    const activeGrowthCount = growthData.data?.length || 0;
+
+    setHealthMetrics({
+      daysSinceLastCheckIn,
+      daysSinceLastAssessment,
+      daysUntilKRAExpires,
+      activeGrowthCount,
+      hasUpcomingCheckIn: !!checkInData.data,
+      totalCheckIns: recentCheckInsData.data?.length || 0,
+      lastCheckInDate: lastCheckInDate ? lastCheckInDate.toLocaleDateString() : null,
+      kraEndDate: kraEndDate ? kraEndDate.toLocaleDateString() : null
+    });
 
     if (maturityModelData.data && maturityModelData.data.length > 0) {
       const assessments = maturityModelData.data;
@@ -319,6 +386,173 @@ export default function TeamMemberDashboard({ memberId, onClose, onViewSection, 
         </div>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-slate-900">Quick Actions</h3>
+            <Activity className="w-5 h-5 text-blue-600" />
+          </div>
+          <div className="space-y-2">
+            <button
+              onClick={() => handleViewSection('checkins')}
+              className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition font-medium"
+            >
+              <Calendar className="w-5 h-5" />
+              Schedule Check-In
+            </button>
+            <button
+              onClick={() => handleViewSection('growth')}
+              className="w-full flex items-center gap-3 px-4 py-3 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg transition font-medium"
+            >
+              <Plus className="w-5 h-5" />
+              Add Growth Area
+            </button>
+            <button
+              onClick={() => handleViewSection('kras')}
+              className="w-full flex items-center gap-3 px-4 py-3 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition font-medium"
+            >
+              <Target className="w-5 h-5" />
+              Update KRA
+            </button>
+            <button
+              onClick={() => handleViewSection('maturity')}
+              className="w-full flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg transition font-medium"
+            >
+              <BarChart3 className="w-5 h-5" />
+              View Assessments
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-slate-900">Health Indicators</h3>
+            <Clock className="w-5 h-5 text-slate-600" />
+          </div>
+          {healthMetrics ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-slate-600" />
+                  <span className="text-sm text-slate-700">Last Check-In</span>
+                </div>
+                <span className={`text-sm font-semibold ${
+                  healthMetrics.daysSinceLastCheckIn === null ? 'text-red-600' :
+                  healthMetrics.daysSinceLastCheckIn > 90 ? 'text-red-600' :
+                  healthMetrics.daysSinceLastCheckIn > 60 ? 'text-amber-600' : 'text-green-600'
+                }`}>
+                  {healthMetrics.daysSinceLastCheckIn === null ? 'Never' : `${healthMetrics.daysSinceLastCheckIn}d ago`}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-slate-600" />
+                  <span className="text-sm text-slate-700">Last Assessment</span>
+                </div>
+                <span className={`text-sm font-semibold ${
+                  healthMetrics.daysSinceLastAssessment === null ? 'text-red-600' :
+                  healthMetrics.daysSinceLastAssessment > 180 ? 'text-red-600' :
+                  healthMetrics.daysSinceLastAssessment > 90 ? 'text-amber-600' : 'text-green-600'
+                }`}>
+                  {healthMetrics.daysSinceLastAssessment === null ? 'Never' : `${healthMetrics.daysSinceLastAssessment}d ago`}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-slate-600" />
+                  <span className="text-sm text-slate-700">KRA Status</span>
+                </div>
+                <span className={`text-sm font-semibold ${
+                  healthMetrics.daysUntilKRAExpires === null ? 'text-red-600' :
+                  healthMetrics.daysUntilKRAExpires < 0 ? 'text-red-600' :
+                  healthMetrics.daysUntilKRAExpires < 30 ? 'text-amber-600' : 'text-green-600'
+                }`}>
+                  {healthMetrics.daysUntilKRAExpires === null ? 'None' :
+                   healthMetrics.daysUntilKRAExpires < 0 ? 'Expired' : `${healthMetrics.daysUntilKRAExpires}d left`}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-slate-600" />
+                  <span className="text-sm text-slate-700">Growth Areas</span>
+                </div>
+                <span className={`text-sm font-semibold ${
+                  healthMetrics.activeGrowthCount === 0 ? 'text-red-600' :
+                  healthMetrics.activeGrowthCount < 2 ? 'text-amber-600' : 'text-green-600'
+                }`}>
+                  {healthMetrics.activeGrowthCount} active
+                </span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-slate-500 text-sm">Loading metrics...</p>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-slate-900">Performance Trend</h3>
+            <TrendingUp className="w-5 h-5 text-blue-600" />
+          </div>
+          {maturityHistory.length > 0 ? (
+            <div className="space-y-4">
+              <div className="h-32 flex items-end justify-between gap-2">
+                {maturityHistory.map((point, idx) => {
+                  const maxHeight = 4;
+                  const heightPercent = (point.average / maxHeight) * 100;
+                  return (
+                    <div key={idx} className="flex-1 flex flex-col items-center gap-2">
+                      <div className="w-full bg-slate-100 rounded-t-lg relative" style={{ height: '100%' }}>
+                        <div
+                          className="absolute bottom-0 w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg transition-all"
+                          style={{ height: `${heightPercent}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-slate-500 text-center">{point.month.split(' ')[0]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="pt-4 border-t border-slate-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-600">Current Avg</span>
+                  <span className="text-lg font-bold text-blue-600">
+                    {maturityHistory[maturityHistory.length - 1].average.toFixed(1)}
+                  </span>
+                </div>
+                {maturityHistory.length > 1 && (
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-sm text-slate-600">Trend</span>
+                    <div className="flex items-center gap-1">
+                      {maturityHistory[maturityHistory.length - 1].average > maturityHistory[maturityHistory.length - 2].average ? (
+                        <>
+                          <TrendingUp className="w-4 h-4 text-green-600" />
+                          <span className="text-sm font-semibold text-green-600">Improving</span>
+                        </>
+                      ) : maturityHistory[maturityHistory.length - 1].average < maturityHistory[maturityHistory.length - 2].average ? (
+                        <>
+                          <TrendingDown className="w-4 h-4 text-red-600" />
+                          <span className="text-sm font-semibold text-red-600">Declining</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm font-semibold text-blue-600">Stable</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-32">
+              <p className="text-slate-500 text-sm text-center">Not enough data for trend analysis</p>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-cyan-50 flex items-center justify-between">
@@ -378,7 +612,7 @@ export default function TeamMemberDashboard({ memberId, onClose, onViewSection, 
                           onClick={() => onEditCheckIn?.(upcomingCheckIn.id)}
                           className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Pencil className="w-4 h-4" />
                           Edit
                         </button>
                         <button

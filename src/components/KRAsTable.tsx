@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   Plus,
-  Edit,
+  Pencil,
   Trash2,
   Download,
   Search,
@@ -935,7 +935,7 @@ export default function KRAsTable({ teamMemberId, teamMember }: KRAsTableProps) 
                     className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
                     title="Edit"
                   >
-                    <Edit className="w-5 h-5" />
+                    <Pencil className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => handleDelete(kra.id)}
@@ -1089,7 +1089,7 @@ export default function KRAsTable({ teamMemberId, teamMember }: KRAsTableProps) 
                               onClick={() => handleEdit(kra)}
                               className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
                             >
-                              <Edit className="w-4 h-4" />
+                              <Pencil className="w-4 h-4" />
                               Edit
                             </button>
                             <button
@@ -1120,7 +1120,7 @@ export default function KRAsTable({ teamMemberId, teamMember }: KRAsTableProps) 
                               onClick={() => handleEdit(kra)}
                               className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
                             >
-                              <Edit className="w-4 h-4" />
+                              <Pencil className="w-4 h-4" />
                               Edit
                             </button>
                             <button

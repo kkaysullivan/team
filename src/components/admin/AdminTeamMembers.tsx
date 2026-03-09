@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, Edit2, Trash2, UserCircle, Mail, Calendar, Upload, Camera, Save, X, Link } from 'lucide-react';
+import { Plus, Pencil, Trash2, CircleUser as UserCircle, Mail, Calendar, Upload, Camera, Save, X, Link } from 'lucide-react';
 import type { Database } from '../../lib/supabase';
 import PersonalityAssessment from '../PersonalityAssessment';
 import Preferences from '../Preferences';
@@ -548,7 +548,7 @@ export default function AdminTeamMembers() {
                       onClick={() => handleEdit(member)}
                       className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     >
-                      <Edit2 className="w-4 h-4" />
+                      <Pencil className="w-4 h-4" />
                       <span className="text-sm font-medium">Edit</span>
                     </button>
                     <button

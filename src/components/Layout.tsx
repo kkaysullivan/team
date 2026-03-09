@@ -1,6 +1,6 @@
 import { ReactNode, useState, memo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Home, LogOut, Menu, X, Settings } from 'lucide-react';
+import { Home, LogOut, Menu, X } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -14,7 +14,6 @@ function Layout({ children, currentView, onViewChange }: LayoutProps) {
 
   const menuItems = [
     { id: 'dashboard', label: 'Home', icon: Home },
-    { id: 'admin', label: 'Admin', icon: Settings },
   ];
 
   const handleSignOut = useCallback(async () => {

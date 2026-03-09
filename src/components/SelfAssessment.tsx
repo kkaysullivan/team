@@ -275,7 +275,13 @@ export default function SelfAssessment() {
 
   const getSkillsForCategory = (categoryId: string) => {
     const skillIds = categorySkills[categoryId] || [];
-    return skills.filter(s => skillIds.includes(s.id));
+    return skills
+      .filter(s => skillIds.includes(s.id))
+      .sort((a, b) => {
+        const aIndex = skillIds.indexOf(a.id);
+        const bIndex = skillIds.indexOf(b.id);
+        return aIndex - bIndex;
+      });
   };
 
   const getLevelsForSkill = (skillId: string) => {

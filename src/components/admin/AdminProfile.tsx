@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit2, Trash2, Save, X, Palette } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, X, Palette } from 'lucide-react';
 
 interface PreferenceType {
   id: string;
@@ -396,7 +396,7 @@ export default function AdminProfile() {
                       onClick={() => handleEditPreference(preference)}
                       className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-white/50 rounded-lg transition"
                     >
-                      <Edit2 className="w-4 h-4 text-slate-600" />
+                      <Pencil className="w-4 h-4 text-slate-600" />
                       <span className="text-xs font-medium text-slate-600">Edit</span>
                     </button>
                     <button
@@ -588,7 +588,7 @@ export default function AdminProfile() {
                       onClick={() => handleEditAssessment(assessment)}
                       className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-white/50 rounded-lg transition"
                     >
-                      <Edit2 className="w-4 h-4 text-slate-600" />
+                      <Pencil className="w-4 h-4 text-slate-600" />
                       <span className="text-xs font-medium text-slate-600">Edit</span>
                     </button>
                     <button

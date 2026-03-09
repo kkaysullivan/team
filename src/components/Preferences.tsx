@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, X } from 'lucide-react';
 
 interface Preference {
   id: string;
@@ -206,7 +206,7 @@ export default function Preferences({ teamMemberId }: PreferencesProps) {
                         onClick={() => handleEdit(preference)}
                         className="p-1.5 hover:bg-white/50 rounded-lg transition"
                       >
-                        <Edit2 className="w-4 h-4 text-slate-600" />
+                        <Pencil className="w-4 h-4 text-slate-600" />
                       </button>
                       <button
                         onClick={() => handleDelete(preference.id)}

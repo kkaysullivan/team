@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Calendar, Save, Edit2, Copy, CheckCircle2 } from 'lucide-react';
+import { Calendar, Save, Pencil, Copy, CheckCircle2 } from 'lucide-react';
 
 interface CalendarTemplate {
   id: string;
@@ -157,7 +157,7 @@ export default function AdminCheckIns() {
               onClick={openEditor}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              <Edit2 className="w-4 h-4" />
+              <Pencil className="w-4 h-4" />
               Edit Template
             </button>
           </div>

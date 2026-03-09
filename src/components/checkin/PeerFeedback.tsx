@@ -1,4 +1,4 @@
-import { Plus, Trash2, CreditCard as Edit2, Check, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, Check, X } from 'lucide-react';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -99,7 +99,7 @@ const PeerFeedbackCard = memo(({
               onClick={handleEdit}
               className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
             >
-              <Edit2 className="w-4 h-4" />
+              <Pencil className="w-4 h-4" />
               Edit
             </button>
             <button

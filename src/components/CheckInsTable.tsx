@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   Plus,
-  Edit,
+  Pencil,
   Trash2,
   Search,
   ArrowUpDown,
@@ -318,7 +318,7 @@ export default function CheckInsTable({ teamMemberId, showHeader = true, initial
                           onClick={() => handleEdit(checkIn)}
                           className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Pencil className="w-4 h-4" />
                           Edit
                         </button>
                         <button

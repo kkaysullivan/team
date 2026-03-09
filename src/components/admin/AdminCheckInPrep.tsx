@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Calendar, CheckCircle2, Circle, Plus, Save, Trash2, User, ExternalLink, FileText, Copy, Edit2, Download } from 'lucide-react';
+import { Calendar, CheckCircle2, Circle, Plus, Save, Trash2, User, ExternalLink, FileText, Copy, Pencil, Download } from 'lucide-react';
 
 interface TeamMember {
   id: string;
@@ -568,7 +568,7 @@ export default function AdminCheckInPrep() {
                             onClick={openTemplateEditor}
                             className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
                           >
-                            <Edit2 className="w-3 h-3" />
+                            <Pencil className="w-3 h-3" />
                             Edit Template
                           </button>
                         </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, X } from 'lucide-react';
 
 interface Role {
   id: string;
@@ -271,7 +271,7 @@ export default function AdminRoles() {
                     onClick={() => startEdit(role)}
                     className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Pencil className="w-4 h-4" />
                     <span className="text-sm font-medium">Edit</span>
                   </button>
                   <button
