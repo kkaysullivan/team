@@ -8,7 +8,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  MessageSquare
+  TrendingUp
 } from 'lucide-react';
 import type { Database } from '../lib/supabase';
 import CheckInForm from './CheckInForm';
@@ -22,6 +22,18 @@ interface TeamMember {
 
 interface CheckInWithMember extends CheckIn {
   team_member: TeamMember;
+}
+
+interface ActiveGrowthArea {
+  id: string;
+  team_member_id: string;
+  rating: number;
+  skill_levels: {
+    description?: string;
+    maturity_skills?: { id: string; name: string };
+    levels?: { name: string };
+  } | null;
+  category_name?: string;
 }
 
 interface CheckInsTableProps {
@@ -39,9 +51,10 @@ export default function CheckInsTable({ teamMemberId, showHeader = true, initial
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<SortField>('review_date');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [showForm, setShowForm] = useState(false);
   const [editingCheckIn, setEditingCheckIn] = useState<CheckIn | null>(null);
+  const [activeGrowthAreas, setActiveGrowthAreas] = useState<Map<string, ActiveGrowthArea[]>>(new Map());
 
   useEffect(() => {
     fetchCheckIns();
@@ -74,14 +87,74 @@ export default function CheckInsTable({ teamMemberId, showHeader = true, initial
       query = query.eq('team_member_id', teamMemberId);
     }
 
-    const { data, error } = await query.order('review_date', { ascending: false });
+    const { data, error } = await query.order('review_date', { ascending: true });
 
     if (error) {
       console.error('Error fetching check-ins:', error);
     } else {
-      setCheckIns(data as CheckInWithMember[] || []);
+      const checkInsData = data as CheckInWithMember[] || [];
+      setCheckIns(checkInsData);
+
+      const memberIds = [...new Set(checkInsData.map(c => c.team_member_id))];
+      if (memberIds.length > 0) {
+        await fetchActiveGrowthAreas(memberIds);
+      }
     }
     setLoading(false);
+  };
+
+  const fetchActiveGrowthAreas = async (memberIds: string[]) => {
+    const { data: gaData } = await supabase
+      .from('growth_areas')
+      .select(`
+        id,
+        team_member_id,
+        rating,
+        skill_levels!growth_areas_skill_level_id_fkey(
+          id,
+          description,
+          maturity_skills(id, name),
+          levels(name)
+        )
+      `)
+      .in('team_member_id', memberIds)
+      .eq('is_active', true);
+
+    if (!gaData || gaData.length === 0) return;
+
+    const skillIds = gaData
+      .map(ga => (ga.skill_levels as any)?.maturity_skills?.id)
+      .filter(Boolean) as string[];
+
+    let categoryMap = new Map<string, string>();
+    if (skillIds.length > 0) {
+      const { data: catData } = await supabase
+        .from('category_skills')
+        .select('skill_id, maturity_categories(name)')
+        .in('skill_id', skillIds);
+
+      categoryMap = new Map(
+        (catData || []).map(cs => [cs.skill_id, (cs.maturity_categories as any)?.name || ''])
+      );
+    }
+
+    const map = new Map<string, ActiveGrowthArea[]>();
+    for (const ga of gaData) {
+      const sl = ga.skill_levels as any;
+      const skillId = sl?.maturity_skills?.id || '';
+      const enriched: ActiveGrowthArea = {
+        id: ga.id,
+        team_member_id: ga.team_member_id,
+        rating: ga.rating || 0,
+        skill_levels: ga.skill_levels as any,
+        category_name: categoryMap.get(skillId) || '',
+      };
+      const existing = map.get(ga.team_member_id) || [];
+      existing.push(enriched);
+      map.set(ga.team_member_id, existing);
+    }
+
+    setActiveGrowthAreas(map);
   };
 
   const filterAndSort = () => {
@@ -126,7 +199,7 @@ export default function CheckInsTable({ teamMemberId, showHeader = true, initial
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection('desc');
+      setSortDirection('asc');
     }
   };
 
@@ -293,45 +366,83 @@ export default function CheckInsTable({ teamMemberId, showHeader = true, initial
                   </td>
                 </tr>
               ) : (
-                filteredCheckIns.map((checkIn) => (
-                  <tr key={checkIn.id} className="hover:bg-slate-50 transition">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-medium text-slate-900">
-                        {formatDate(checkIn.review_date)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-900">
-                          {formatTitle(checkIn)}
+                filteredCheckIns.map((checkIn) => {
+                  const areas = activeGrowthAreas.get(checkIn.team_member_id) || [];
+                  return (
+                    <tr key={checkIn.id} className="hover:bg-slate-50 transition align-top">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-medium text-slate-900">
+                          {formatDate(checkIn.review_date)}
                         </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                        {formatType(checkIn)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={() => handleEdit(checkIn)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
-                        >
-                          <Pencil className="w-4 h-4" />
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(checkIn.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-2">
+                          <span className="text-slate-900">
+                            {formatTitle(checkIn)}
+                          </span>
+                          {areas.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {areas.map((area) => {
+                                const sl = area.skill_levels as any;
+                                const skillName = sl?.maturity_skills?.name || '';
+                                const levelName = sl?.levels?.name || '';
+                                const description = sl?.description || '';
+                                return (
+                                  <div
+                                    key={area.id}
+                                    className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 max-w-xs"
+                                  >
+                                    <TrendingUp className="w-3.5 h-3.5 text-orange-500 mt-0.5 flex-shrink-0" />
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        {area.category_name && (
+                                          <span className="text-xs font-semibold text-orange-700">{area.category_name}</span>
+                                        )}
+                                        {levelName && (
+                                          <span className="text-xs text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded font-medium">{levelName}</span>
+                                        )}
+                                        <span className="text-xs font-bold text-orange-800 ml-auto">{area.rating}/5</span>
+                                      </div>
+                                      {skillName && (
+                                        <p className="text-xs text-slate-700 font-medium mt-0.5">{skillName}</p>
+                                      )}
+                                      {description && (
+                                        <p className="text-xs text-slate-500 mt-0.5 leading-tight line-clamp-2">{description}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                          {formatType(checkIn)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => handleEdit(checkIn)}
+                            className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(checkIn.id)}
+                            className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

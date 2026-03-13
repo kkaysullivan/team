@@ -285,7 +285,7 @@ export default function MaturityModel({ teamMemberId }: MaturityModelProps) {
       skill_id: assessment.skill_id,
       leader_rating: assessment.leader_rating,
       self_rating: assessment.self_rating,
-      notes: notes[assessment.skill_id] || '',
+      notes: assessment.notes || notes[assessment.skill_id] || '',
       assessor_id: user.id,
     }));
 
@@ -293,10 +293,11 @@ export default function MaturityModel({ teamMemberId }: MaturityModelProps) {
       .from('maturity_assessments')
       .upsert(dataToSave, {
         onConflict: 'team_member_id,skill_id',
-      });
+      })
+      .select();
 
     if (error) {
-      console.error('Error saving assessments:', error);
+      alert(`Failed to save: ${error.message}`);
     } else {
       setSaveSuccess(true);
       await fetchAssessments();
@@ -530,7 +531,7 @@ export default function MaturityModel({ teamMemberId }: MaturityModelProps) {
     const memberLevel = member.current_level;
     const avgScore = avgCategoryScore.avgScore;
 
-    // Define level ranges
+    // Define level ranges based on scoring key
     const levelRanges: Record<string, { min: number; max: number }> = {
       'Associate': { min: 0.0, max: 0.7 },
       'Level 1': { min: 0.8, max: 1.7 },
@@ -544,9 +545,17 @@ export default function MaturityModel({ teamMemberId }: MaturityModelProps) {
 
     // Round to 1 decimal place for comparison to handle floating point precision
     const roundedScore = Math.round(avgScore * 10) / 10;
-    const promotionThreshold = Math.round((range.max - 0.3) * 10) / 10;
 
-    // Needs Coaching: lower than the actual level range
+    // Promotion Ready: score is 2.8+ (Senior Level or above)
+    if (roundedScore >= 2.8) {
+      return {
+        status: 'promotion-ready',
+        label: 'Promotion Ready',
+        description: 'Performing at Senior Level or above (2.8+)',
+      };
+    }
+
+    // Needs Coaching: lower than the current level range
     if (roundedScore < range.min) {
       return {
         status: 'needs-coaching',
@@ -555,16 +564,7 @@ export default function MaturityModel({ teamMemberId }: MaturityModelProps) {
       };
     }
 
-    // Promotion Ready: within 0.3 of the top of the range or exceeds it
-    if (roundedScore >= promotionThreshold) {
-      return {
-        status: 'promotion-ready',
-        label: 'Promotion Ready',
-        description: 'Performing at or above level expectations',
-      };
-    }
-
-    // On Track: within the range
+    // On Track: within the current level range
     return {
       status: 'on-track',
       label: 'On Track',
@@ -728,9 +728,34 @@ export default function MaturityModel({ teamMemberId }: MaturityModelProps) {
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-blue-200">
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-slate-600 mb-3">
                 Based on {scores.totalSkillsRated} rated skill{scores.totalSkillsRated !== 1 ? 's' : ''} across all categories
               </p>
+              <div className="bg-white border border-blue-200 rounded-lg p-4">
+                <p className="text-sm font-semibold text-slate-900 mb-2">Scoring Key</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 text-xs">
+                  <div className="flex flex-col">
+                    <span className="font-medium text-slate-700">Associate</span>
+                    <span className="text-slate-600">0.0 – 0.7</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-slate-700">Level 1</span>
+                    <span className="text-slate-600">0.8 – 1.7</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-slate-700">Level 2</span>
+                    <span className="text-slate-600">1.8 – 2.7</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-slate-700">Senior Level</span>
+                    <span className="text-slate-600">2.8 – 3.7</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-slate-700">Lead</span>
+                    <span className="text-slate-600">3.8 – 4.0</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -780,6 +805,12 @@ export default function MaturityModel({ teamMemberId }: MaturityModelProps) {
                                   )}
                                 </div>
                                 <p className="text-sm text-slate-600 mt-1">{skill.description}</p>
+                                {leaderLevelData && (
+                                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                                    <p className="text-xs text-blue-700 font-medium mb-1">{leaderLevelData.level_name}</p>
+                                    <p className="text-sm text-slate-700">{leaderLevelData.description}</p>
+                                  </div>
+                                )}
                               </div>
                               <div className="flex gap-4 text-sm">
                                 <div className="text-right">
@@ -787,6 +818,11 @@ export default function MaturityModel({ teamMemberId }: MaturityModelProps) {
                                   <p className={`font-medium ${leaderLevelData ? 'text-blue-600' : 'text-slate-400'}`}>
                                     {leaderLevelData?.level_name || 'Not rated'}
                                   </p>
+                                  {leaderLevelData && (
+                                    <p className="text-xs text-blue-500 mt-0.5">
+                                      {getLevelScore(leaderLevelData.level_name || null).toFixed(1)}
+                                    </p>
+                                  )}
                                 </div>
                                 <div className="text-right">
                                   <p className="text-xs text-slate-500 mb-1">Team Member</p>

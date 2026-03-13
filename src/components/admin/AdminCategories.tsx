@@ -31,6 +31,7 @@ export default function AdminCategories() {
   const [categorySkills, setCategorySkills] = useState<Record<string, CategorySkill[]>>({});
   const [allSkills, setAllSkills] = useState<Skill[]>([]);
   const [addingSkillTo, setAddingSkillTo] = useState<string | null>(null);
+  const [selectedSkillId, setSelectedSkillId] = useState<string>('');
 
   useEffect(() => {
     fetchCategories();
@@ -138,6 +139,8 @@ export default function AdminCategories() {
   };
 
   const handleAddSkill = async (categoryId: string, skillId: string) => {
+    if (!skillId) return;
+
     const skills = categorySkills[categoryId] || [];
     const maxOrder = skills.length > 0
       ? Math.max(...skills.map(s => s.display_order))
@@ -153,8 +156,16 @@ export default function AdminCategories() {
 
     if (!error) {
       setAddingSkillTo(null);
+      setSelectedSkillId('');
       await fetchCategorySkills(categoryId);
+    } else {
+      alert(`Failed to add skill: ${error.message}`);
     }
+  };
+
+  const cancelAddSkill = () => {
+    setAddingSkillTo(null);
+    setSelectedSkillId('');
   };
 
   const handleRemoveSkill = async (categoryId: string, skillId: string) => {
@@ -371,13 +382,9 @@ export default function AdminCategories() {
                           Select a skill to add
                         </label>
                         <select
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              handleAddSkill(category.id, e.target.value);
-                            }
-                          }}
+                          value={selectedSkillId}
+                          onChange={(e) => setSelectedSkillId(e.target.value)}
                           className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          defaultValue=""
                         >
                           <option value="">-- Select a skill --</option>
                           {getAvailableSkills(category.id).map(skill => (
@@ -386,12 +393,23 @@ export default function AdminCategories() {
                             </option>
                           ))}
                         </select>
-                        <button
-                          onClick={() => setAddingSkillTo(null)}
-                          className="mt-2 text-sm text-slate-600 hover:text-slate-800"
-                        >
-                          Cancel
-                        </button>
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => handleAddSkill(category.id, selectedSkillId)}
+                            disabled={!selectedSkillId}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Save className="w-4 h-4" />
+                            Add Skill
+                          </button>
+                          <button
+                            onClick={cancelAddSkill}
+                            className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     )}
 

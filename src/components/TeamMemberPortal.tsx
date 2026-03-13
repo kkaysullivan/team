@@ -75,7 +75,7 @@ export default function TeamMemberPortal() {
       .from('performance_reviews')
       .select('*')
       .eq('team_member_id', memberData.id)
-      .order('review_date', { ascending: false })
+      .order('review_date', { ascending: true })
       .limit(5);
 
     if (checkInsData) setCheckIns(checkInsData);

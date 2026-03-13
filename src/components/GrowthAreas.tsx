@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Pencil, Trash2, TrendingUp, Calendar, Star } from 'lucide-react';
+import { Plus, Pencil, Trash2, TrendingUp, Calendar, Star, Power, PowerOff } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import DOMPurify from 'dompurify';
@@ -18,6 +18,7 @@ interface GrowthArea {
   created_at: string;
   updated_at: string;
   skill_levels?: {
+    description?: string;
     maturity_skills?: {
       name: string;
     };
@@ -108,6 +109,7 @@ export default function GrowthAreas({ teamMemberId }: GrowthAreasProps) {
       .select(`
         *,
         skill_levels!inner (
+          description,
           maturity_skills!inner (
             id,
             name
@@ -283,6 +285,29 @@ export default function GrowthAreas({ teamMemberId }: GrowthAreasProps) {
       is_active: growthArea.is_active,
     });
     setShowForm(true);
+  };
+
+  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    // If marking as active, check the limit
+    if (!currentStatus) {
+      const activeCount = growthAreas.filter(ga => ga.is_active).length;
+      if (activeCount >= 3) {
+        alert('A team member can have a maximum of 3 active growth areas. Please mark an existing one as inactive first.');
+        return;
+      }
+    }
+
+    const { error } = await supabase
+      .from('growth_areas')
+      .update({ is_active: !currentStatus })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error toggling growth area status:', error);
+      alert('Failed to update growth area status');
+    } else {
+      fetchGrowthAreas();
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -530,8 +555,20 @@ export default function GrowthAreas({ teamMemberId }: GrowthAreasProps) {
                     <p className="text-sm text-slate-600">
                       {area.category_name}
                     </p>
+                    {(area.skill_levels as any)?.description && (
+                      <p className="text-sm text-slate-500 mt-1 italic">
+                        {(area.skill_levels as any).description}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2">
+                    <button
+                      onClick={() => handleToggleActive(area.id, area.is_active)}
+                      className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                      title="Mark as Inactive"
+                    >
+                      <PowerOff className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => handleEdit(area)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
@@ -620,14 +657,28 @@ export default function GrowthAreas({ teamMemberId }: GrowthAreasProps) {
                       <p className="text-sm text-slate-600">
                         {area.category_name}
                       </p>
+                      {(area.skill_levels as any)?.description && (
+                        <p className="text-sm text-slate-500 mt-1 italic">
+                          {(area.skill_levels as any).description}
+                        </p>
+                      )}
                     </div>
-                    <button
-                      onClick={() => handleDelete(area.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleToggleActive(area.id, area.is_active)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                        title="Mark as Active"
+                      >
+                        <Power className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(area.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-3 text-sm">

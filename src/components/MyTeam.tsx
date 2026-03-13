@@ -15,6 +15,8 @@ export default function MyTeam() {
   const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editingCheckInId, setEditingCheckInId] = useState<string | null>(null);
+  const [detailMemberId, setDetailMemberId] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState<'checkins' | 'maturity' | 'profile' | 'kras' | 'growth'>('checkins');
 
   useEffect(() => {
     if (user) {
@@ -37,6 +39,19 @@ export default function MyTeam() {
     }
     setLoading(false);
   };
+
+  if (detailMemberId) {
+    return (
+      <TeamMemberDetail
+        memberId={detailMemberId}
+        onBack={() => {
+          setDetailMemberId(null);
+          setViewingMemberId(detailMemberId);
+        }}
+        initialTab={detailTab}
+      />
+    );
+  }
 
   if (editingMemberId && editingCheckInId) {
     return (
@@ -64,6 +79,11 @@ export default function MyTeam() {
       <TeamMemberDashboard
         memberId={viewingMemberId}
         onClose={() => setViewingMemberId(null)}
+        onViewSection={(section) => {
+          setDetailTab(section);
+          setDetailMemberId(viewingMemberId);
+          setViewingMemberId(null);
+        }}
         onEditCheckIn={(checkInId) => {
           setEditingCheckInId(checkInId);
           setEditingMemberId(viewingMemberId);

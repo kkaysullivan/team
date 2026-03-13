@@ -88,10 +88,11 @@ export default function SelfAssessment() {
         .select('*, team_members(*)')
         .eq('token', tokenValue)
         .gt('expires_at', new Date().toISOString())
+        .is('completed_at', null)
         .maybeSingle();
 
       if (tokenError || !tokenData) {
-        setError('Invalid or expired assessment link');
+        setError('This assessment link is invalid, expired, or has already been completed.');
         setTokenValid(false);
         setLoading(false);
         return;

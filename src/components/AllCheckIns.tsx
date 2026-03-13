@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { ClipboardCheck, Plus, Pencil, Trash2, ArrowUpDown, ArrowLeft, MessageSquare } from 'lucide-react';
+import { ClipboardCheck, Plus, Pencil, Trash2, ArrowUpDown, ArrowLeft, TrendingUp } from 'lucide-react';
 import type { Database } from '../lib/supabase';
 import CheckInForm from './CheckInForm';
 
@@ -18,6 +18,18 @@ interface AllCheckInsProps {
   onBack: () => void;
 }
 
+interface ActiveGrowthArea {
+  id: string;
+  team_member_id: string;
+  rating: number;
+  skill_levels: {
+    description?: string;
+    maturity_skills?: { id: string; name: string };
+    levels?: { name: string };
+  } | null;
+  category_name?: string;
+}
+
 export default function AllCheckIns({ onBack }: AllCheckInsProps) {
   const { user } = useAuth();
   const [checkIns, setCheckIns] = useState<CheckInWithMember[]>([]);
@@ -25,7 +37,8 @@ export default function AllCheckIns({ onBack }: AllCheckInsProps) {
   const [showCheckInForm, setShowCheckInForm] = useState(false);
   const [editingCheckIn, setEditingCheckIn] = useState<CheckIn | null>(null);
   const [sortField, setSortField] = useState<'date' | 'title' | 'type'>('date');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [activeGrowthAreas, setActiveGrowthAreas] = useState<Map<string, ActiveGrowthArea[]>>(new Map());
 
   useEffect(() => {
     if (user) {
@@ -41,14 +54,74 @@ export default function AllCheckIns({ onBack }: AllCheckInsProps) {
         *,
         team_member:team_members(id, full_name)
       `)
-      .order('review_date', { ascending: false });
+      .order('review_date', { ascending: true });
 
     if (error) {
       console.error('Error fetching check-ins:', error);
     } else {
-      setCheckIns(data as CheckInWithMember[] || []);
+      const checkInsData = data as CheckInWithMember[] || [];
+      setCheckIns(checkInsData);
+
+      const memberIds = [...new Set(checkInsData.map(c => c.team_member_id))];
+      if (memberIds.length > 0) {
+        await fetchActiveGrowthAreas(memberIds);
+      }
     }
     setLoading(false);
+  };
+
+  const fetchActiveGrowthAreas = async (memberIds: string[]) => {
+    const { data: gaData } = await supabase
+      .from('growth_areas')
+      .select(`
+        id,
+        team_member_id,
+        rating,
+        skill_levels!growth_areas_skill_level_id_fkey(
+          id,
+          description,
+          maturity_skills(id, name),
+          levels(name)
+        )
+      `)
+      .in('team_member_id', memberIds)
+      .eq('is_active', true);
+
+    if (!gaData || gaData.length === 0) return;
+
+    const skillIds = gaData
+      .map(ga => (ga.skill_levels as any)?.maturity_skills?.id)
+      .filter(Boolean) as string[];
+
+    let categoryMap = new Map<string, string>();
+    if (skillIds.length > 0) {
+      const { data: catData } = await supabase
+        .from('category_skills')
+        .select('skill_id, maturity_categories(name)')
+        .in('skill_id', skillIds);
+
+      categoryMap = new Map(
+        (catData || []).map(cs => [cs.skill_id, (cs.maturity_categories as any)?.name || ''])
+      );
+    }
+
+    const map = new Map<string, ActiveGrowthArea[]>();
+    for (const ga of gaData) {
+      const sl = ga.skill_levels as any;
+      const skillId = sl?.maturity_skills?.id || '';
+      const enriched: ActiveGrowthArea = {
+        id: ga.id,
+        team_member_id: ga.team_member_id,
+        rating: ga.rating || 0,
+        skill_levels: ga.skill_levels as any,
+        category_name: categoryMap.get(skillId) || '',
+      };
+      const existing = map.get(ga.team_member_id) || [];
+      existing.push(enriched);
+      map.set(ga.team_member_id, existing);
+    }
+
+    setActiveGrowthAreas(map);
   };
 
   const handleDeleteCheckIn = async (id: string) => {
@@ -236,18 +309,55 @@ export default function AllCheckIns({ onBack }: AllCheckInsProps) {
                     </td>
                   </tr>
                 ) : (
-                  sortedCheckIns.map((checkIn) => (
-                    <tr key={checkIn.id} className="hover:bg-slate-50 transition">
+                  sortedCheckIns.map((checkIn) => {
+                    const areas = activeGrowthAreas.get(checkIn.team_member_id) || [];
+                    return (
+                    <tr key={checkIn.id} className="hover:bg-slate-50 transition align-top">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="font-medium text-slate-900">
                           {formatDate(checkIn.review_date)}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col gap-2">
                           <span className="text-slate-900">
                             {formatTitle(checkIn)}
                           </span>
+                          {areas.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {areas.map((area) => {
+                                const sl = area.skill_levels as any;
+                                const skillName = sl?.maturity_skills?.name || '';
+                                const levelName = sl?.levels?.name || '';
+                                const description = sl?.description || '';
+                                return (
+                                  <div
+                                    key={area.id}
+                                    className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 max-w-xs"
+                                  >
+                                    <TrendingUp className="w-3.5 h-3.5 text-orange-500 mt-0.5 flex-shrink-0" />
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        {area.category_name && (
+                                          <span className="text-xs font-semibold text-orange-700">{area.category_name}</span>
+                                        )}
+                                        {levelName && (
+                                          <span className="text-xs text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded font-medium">{levelName}</span>
+                                        )}
+                                        <span className="text-xs font-bold text-orange-800 ml-auto">{area.rating}/5</span>
+                                      </div>
+                                      {skillName && (
+                                        <p className="text-xs text-slate-700 font-medium mt-0.5">{skillName}</p>
+                                      )}
+                                      {description && (
+                                        <p className="text-xs text-slate-500 mt-0.5 leading-tight line-clamp-2">{description}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -274,7 +384,8 @@ export default function AllCheckIns({ onBack }: AllCheckInsProps) {
                         </div>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>

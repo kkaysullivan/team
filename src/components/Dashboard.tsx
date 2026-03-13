@@ -16,12 +16,20 @@ import AdminProfile from './admin/AdminProfile';
 import AdminCheckIns from './admin/AdminCheckIns';
 import AdminCheckInPrep from './admin/AdminCheckInPrep';
 import AdminGrowthAreas from './admin/AdminGrowthAreas';
+import TeamPerformanceChart from './TeamPerformanceChart';
 
 type TeamMember = Database['public']['Tables']['team_members']['Row'];
 type CheckIn = Database['public']['Tables']['performance_reviews']['Row'];
 
 interface TeamMemberWithTrend extends TeamMember {
   performanceTrend: Array<{ month: string; average: number }>;
+}
+
+interface TeamMemberTrendData {
+  id: string;
+  name: string;
+  color: string;
+  data: Array<{ month: string; average: number }>;
 }
 
 interface CheckInWithMember extends CheckIn {
@@ -60,6 +68,7 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [teamStats, setTeamStats] = useState<any>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [teamPerformanceTrends, setTeamPerformanceTrends] = useState<TeamMemberTrendData[]>([]);
 
   const navSections: NavSection[] = [
     {
@@ -102,8 +111,103 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
       fetchMembers();
       fetchCheckIns();
       fetchTeamStats();
+      fetchTeamPerformanceData();
     }
   }, [user]);
+
+  const fetchTeamPerformanceData = async () => {
+    const now = new Date();
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+    const [teamMembersResult, levelsResult] = await Promise.all([
+      supabase
+        .from('team_members')
+        .select('id, full_name')
+        .eq('status', 'active')
+        .order('full_name'),
+      supabase
+        .from('levels')
+        .select('id, name')
+    ]);
+
+    if (!teamMembersResult.data || !levelsResult.data) {
+      setTeamPerformanceTrends([]);
+      return;
+    }
+
+    const teamMembers = teamMembersResult.data;
+    const levels = levelsResult.data;
+
+    const LEVEL_ORDER: Record<string, number> = {
+      'Associate': 1,
+      'Level 1': 2,
+      'Level 2': 3,
+      'Senior': 4,
+      'Lead': 5,
+    };
+
+    const levelScoreMap = new Map<string, number>();
+    levels.forEach(level => {
+      const score = LEVEL_ORDER[level.name] ?? null;
+      if (score !== null) levelScoreMap.set(level.id, score);
+    });
+
+    const COLORS = [
+      'rgb(59, 130, 246)',
+      'rgb(16, 185, 129)',
+      'rgb(249, 115, 22)',
+      'rgb(236, 72, 153)',
+      'rgb(14, 165, 233)',
+      'rgb(234, 179, 8)',
+      'rgb(239, 68, 68)',
+    ];
+
+    const memberTrends = await Promise.all(
+      teamMembers.map(async (member, idx) => {
+        const { data: assessments } = await supabase
+          .from('maturity_assessments')
+          .select('assessed_at, leader_rating')
+          .eq('team_member_id', member.id)
+          .gte('assessed_at', twelveMonthsAgo.toISOString())
+          .not('leader_rating', 'is', null)
+          .order('assessed_at', { ascending: true });
+
+        const monthlyData = new Map<string, { total: number; count: number }>();
+
+        if (assessments && assessments.length > 0) {
+          assessments.forEach((assessment) => {
+            const score = levelScoreMap.get(assessment.leader_rating!);
+            if (score !== undefined) {
+              const date = new Date(assessment.assessed_at);
+              const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+              if (!monthlyData.has(monthKey)) {
+                monthlyData.set(monthKey, { total: 0, count: 0 });
+              }
+              const monthStats = monthlyData.get(monthKey)!;
+              monthStats.total += score;
+              monthStats.count += 1;
+            }
+          });
+        }
+
+        const data = Array.from(monthlyData.entries())
+          .map(([month, stats]) => ({
+            month,
+            average: stats.total / stats.count
+          }))
+          .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+
+        return {
+          id: member.id,
+          name: member.full_name,
+          color: COLORS[idx % COLORS.length],
+          data
+        };
+      })
+    );
+
+    setTeamPerformanceTrends(memberTrends.filter(m => m.data.length > 0));
+  };
 
   const fetchTeamStats = async () => {
     setStatsLoading(true);
@@ -424,15 +528,6 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-slate-600" />
-                    <span className="text-sm text-slate-700">Team Members</span>
-                  </div>
-                  <span className="text-sm font-semibold text-slate-900">
-                    {teamStats.totalMembers}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-slate-600" />
                     <span className="text-sm text-slate-700">Upcoming Check-Ins</span>
                   </div>
@@ -480,64 +575,8 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
               <div className="flex items-center justify-center h-40">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
-            ) : teamStats && teamStats.performanceTrend.length > 0 ? (
-              <div className="space-y-4">
-                <div className="h-32 flex items-end justify-between gap-2">
-                  {teamStats.performanceTrend.map((point: any, idx: number) => {
-                    const maxHeight = 5;
-                    const minHeight = 1;
-                    const heightPercent = ((point.average - minHeight) / (maxHeight - minHeight)) * 100;
-                    return (
-                      <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                        <div className="w-full bg-slate-100 rounded-t-lg relative" style={{ height: '100%' }}>
-                          <div
-                            className="absolute bottom-0 w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg transition-all"
-                            style={{ height: `${heightPercent}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-slate-500 text-center">{point.month.split(' ')[0]}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="pt-4 border-t border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600">Current Avg</span>
-                    <span className="text-lg font-bold text-blue-600">
-                      {teamStats.performanceTrend[teamStats.performanceTrend.length - 1].average.toFixed(1)}
-                    </span>
-                  </div>
-                  {teamStats.performanceTrend.length > 1 && (
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-sm text-slate-600">Trend</span>
-                      <div className="flex items-center gap-1">
-                        {teamStats.performanceTrend[teamStats.performanceTrend.length - 1].average >
-                         teamStats.performanceTrend[teamStats.performanceTrend.length - 2].average ? (
-                          <>
-                            <TrendingUp className="w-4 h-4 text-green-600" />
-                            <span className="text-sm font-semibold text-green-600">Improving</span>
-                          </>
-                        ) : teamStats.performanceTrend[teamStats.performanceTrend.length - 1].average <
-                              teamStats.performanceTrend[teamStats.performanceTrend.length - 2].average ? (
-                          <>
-                            <TrendingDown className="w-4 h-4 text-red-600" />
-                            <span className="text-sm font-semibold text-red-600">Declining</span>
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                            <span className="text-sm font-semibold text-blue-600">Stable</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
             ) : (
-              <div className="flex items-center justify-center h-40">
-                <p className="text-slate-500 text-sm text-center">Not enough data for trend analysis</p>
-              </div>
+              <TeamPerformanceChart memberTrends={teamPerformanceTrends} />
             )}
           </div>
         </div>

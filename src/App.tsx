@@ -64,13 +64,12 @@ function AppContent() {
           .maybeSingle();
 
         if (mounted) {
-          const role = managerData ? 'manager' : 'manager';
-          setUserRole(role);
+          setUserRole('manager');
           setRoleLoading(false);
           if (timeoutId) clearTimeout(timeoutId);
         }
       } catch (error) {
-        console.error('[Role Detection] Error:', error);
+        console.error('[Role Detection] Error:', error instanceof Error ? error.message : 'Unknown error');
         if (mounted) {
           setUserRole('manager');
           setRoleLoading(false);

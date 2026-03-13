@@ -305,8 +305,17 @@ export default function TeamMemberDashboard({ memberId, onClose, onViewSection, 
     if (!range) return null;
 
     const roundedScore = Math.round(avgScore * 10) / 10;
-    const promotionThreshold = Math.round((range.max - 0.3) * 10) / 10;
 
+    // Promotion Ready: score is 2.8+ (Senior Level or above)
+    if (roundedScore >= 2.8) {
+      return {
+        status: 'promotion-ready',
+        label: 'Promotion Ready',
+        description: 'Performing at Senior Level or above (2.8+)',
+      };
+    }
+
+    // Needs Coaching: lower than the current level range
     if (roundedScore < range.min) {
       return {
         status: 'needs-coaching',
@@ -315,14 +324,7 @@ export default function TeamMemberDashboard({ memberId, onClose, onViewSection, 
       };
     }
 
-    if (roundedScore >= promotionThreshold) {
-      return {
-        status: 'promotion-ready',
-        label: 'Promotion Ready',
-        description: 'Performing at or above level expectations',
-      };
-    }
-
+    // On Track: within the current level range
     return {
       status: 'on-track',
       label: 'On Track',
@@ -401,18 +403,25 @@ export default function TeamMemberDashboard({ memberId, onClose, onViewSection, 
               Schedule Check-In
             </button>
             <button
+              onClick={() => handleViewSection('maturity')}
+              className="w-full flex items-center gap-3 px-4 py-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition font-medium"
+            >
+              <Target className="w-5 h-5" />
+              View Maturity Model
+            </button>
+            <button
               onClick={() => handleViewSection('growth')}
               className="w-full flex items-center gap-3 px-4 py-3 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg transition font-medium"
             >
-              <Plus className="w-5 h-5" />
-              Add Growth Area
+              <TrendingUp className="w-5 h-5" />
+              View Growth Areas
             </button>
             <button
               onClick={() => handleViewSection('kras')}
               className="w-full flex items-center gap-3 px-4 py-3 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition font-medium"
             >
               <Target className="w-5 h-5" />
-              Update KRA
+              View KRA
             </button>
             <button
               onClick={() => handleViewSection('maturity')}
@@ -491,65 +500,40 @@ export default function TeamMemberDashboard({ memberId, onClose, onViewSection, 
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-slate-900">Performance Trend</h3>
-            <TrendingUp className="w-5 h-5 text-blue-600" />
+            <h3 className="text-lg font-semibold text-slate-900">Important Dates</h3>
+            <Gift className="w-5 h-5 text-rose-600" />
           </div>
-          {maturityHistory.length > 0 ? (
-            <div className="space-y-4">
-              <div className="h-32 flex items-end justify-between gap-2">
-                {maturityHistory.map((point, idx) => {
-                  const maxHeight = 4;
-                  const heightPercent = (point.average / maxHeight) * 100;
-                  return (
-                    <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                      <div className="w-full bg-slate-100 rounded-t-lg relative" style={{ height: '100%' }}>
-                        <div
-                          className="absolute bottom-0 w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg transition-all"
-                          style={{ height: `${heightPercent}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-slate-500 text-center">{point.month.split(' ')[0]}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="pt-4 border-t border-slate-200">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-600">Current Avg</span>
-                  <span className="text-lg font-bold text-blue-600">
-                    {maturityHistory[maturityHistory.length - 1].average.toFixed(1)}
-                  </span>
-                </div>
-                {maturityHistory.length > 1 && (
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-sm text-slate-600">Trend</span>
-                    <div className="flex items-center gap-1">
-                      {maturityHistory[maturityHistory.length - 1].average > maturityHistory[maturityHistory.length - 2].average ? (
-                        <>
-                          <TrendingUp className="w-4 h-4 text-green-600" />
-                          <span className="text-sm font-semibold text-green-600">Improving</span>
-                        </>
-                      ) : maturityHistory[maturityHistory.length - 1].average < maturityHistory[maturityHistory.length - 2].average ? (
-                        <>
-                          <TrendingDown className="w-4 h-4 text-red-600" />
-                          <span className="text-sm font-semibold text-red-600">Declining</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                          <span className="text-sm font-semibold text-blue-600">Stable</span>
-                        </>
-                      )}
-                    </div>
+          <div className="space-y-4">
+            {birthday && (
+              <div className="flex items-center justify-between p-4 bg-rose-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                    <span className="text-xl">🎂</span>
                   </div>
-                )}
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Birthday</p>
+                    <p className="text-sm text-slate-600">{birthday}</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-32">
-              <p className="text-slate-500 text-sm text-center">Not enough data for trend analysis</p>
-            </div>
-          )}
+            )}
+            {ramseyversary && (
+              <div className="flex items-center justify-between p-4 bg-amber-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                    <span className="text-xl">🎉</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Ramseyversary</p>
+                    <p className="text-sm text-slate-600">{ramseyversary}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {!birthday && !ramseyversary && (
+              <p className="text-slate-500 text-center py-4">No dates available</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -634,6 +618,73 @@ export default function TeamMemberDashboard({ memberId, onClose, onViewSection, 
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-zinc-50 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="w-6 h-6 text-blue-600" />
+              <h2 className="text-lg font-semibold text-slate-900">Performance Trend</h2>
+            </div>
+          </div>
+          <div className="p-6">
+            {maturityHistory.length > 0 ? (
+              <div className="space-y-4">
+                <div className="h-32 flex items-end justify-between gap-2">
+                  {maturityHistory.map((point, idx) => {
+                    const maxHeight = 4;
+                    const heightPercent = (point.average / maxHeight) * 100;
+                    return (
+                      <div key={idx} className="flex-1 flex flex-col items-center gap-2">
+                        <div className="w-full bg-slate-100 rounded-t-lg relative" style={{ height: '100%' }}>
+                          <div
+                            className="absolute bottom-0 w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg transition-all"
+                            style={{ height: `${heightPercent}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-slate-500 text-center">{point.month.split(' ')[0]}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="pt-4 border-t border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-600">Current Avg</span>
+                    <span className="text-lg font-bold text-blue-600">
+                      {maturityHistory[maturityHistory.length - 1].average.toFixed(1)}
+                    </span>
+                  </div>
+                  {maturityHistory.length > 1 && (
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-sm text-slate-600">Trend</span>
+                      <div className="flex items-center gap-1">
+                        {maturityHistory[maturityHistory.length - 1].average > maturityHistory[maturityHistory.length - 2].average ? (
+                          <>
+                            <TrendingUp className="w-4 h-4 text-green-600" />
+                            <span className="text-sm font-semibold text-green-600">Improving</span>
+                          </>
+                        ) : maturityHistory[maturityHistory.length - 1].average < maturityHistory[maturityHistory.length - 2].average ? (
+                          <>
+                            <TrendingDown className="w-4 h-4 text-red-600" />
+                            <span className="text-sm font-semibold text-red-600">Declining</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                            <span className="text-sm font-semibold text-blue-600">Stable</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-32">
+                <p className="text-slate-500 text-sm text-center">Not enough data for trend analysis</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -842,55 +893,6 @@ export default function TeamMemberDashboard({ memberId, onClose, onViewSection, 
             ) : (
               <p className="text-slate-500 text-center py-8">No maturity assessments yet</p>
             )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-rose-50 to-pink-50 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Gift className="w-6 h-6 text-rose-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Important Dates</h2>
-            </div>
-            <button
-              onClick={() => handleViewSection('profile')}
-              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              See all
-              <ExternalLink className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {birthday && (
-                <div className="flex items-center justify-between p-4 bg-rose-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
-                      <span className="text-xl">🎂</span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">Birthday</p>
-                      <p className="text-sm text-slate-600">{birthday}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {ramseyversary && (
-                <div className="flex items-center justify-between p-4 bg-amber-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
-                      <span className="text-xl">🎉</span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">Ramseyversary</p>
-                      <p className="text-sm text-slate-600">{ramseyversary}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {!birthday && !ramseyversary && (
-                <p className="text-slate-500 text-center py-4">No dates available</p>
-              )}
-            </div>
           </div>
         </div>
       </div>

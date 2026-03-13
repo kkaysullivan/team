@@ -207,8 +207,8 @@ export default function CheckInForm({ teamMemberId, existingData, onSave, onCanc
         data.year = calculatedYear;
         data.reflection_questions = null;
         data.peer_feedback = null;
-        data.maturity_snapshot = null;
-        data.growth_areas = null;
+        data.maturity_snapshot = maturitySnapshot;
+        data.growth_areas = growthAreas;
       } else {
         data.quarter = null;
         data.year = calculatedYear;

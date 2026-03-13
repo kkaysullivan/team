@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
-          console.error('[Auth] Error getting session:', error);
+          console.error('[Auth] Error getting session:', error.message);
         }
 
         if (mounted) {
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (timeoutId) clearTimeout(timeoutId);
         }
       } catch (error) {
-        console.error('[Auth] Error initializing:', error);
+        console.error('[Auth] Error initializing:', error instanceof Error ? error.message : 'Unknown error');
         if (mounted) {
           setUser(null);
           setLoading(false);
