@@ -13,8 +13,8 @@ const SelfAssessment = lazy(() => import('./components/SelfAssessment'));
 const TeamMemberPortal = lazy(() => import('./components/TeamMemberPortal'));
 
 function AppContent() {
-  const { user, loading } = useAuth();
-  const [currentView, setCurrentView] = useState('dashboard');
+  const { user, loading, isSuperAdmin } = useAuth();
+  const [currentView, setCurrentView] = useState('overview');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [editingCheckInId, setEditingCheckInId] = useState<string | null>(null);
   const [isSelfAssessment, setIsSelfAssessment] = useState(false);
@@ -40,6 +40,14 @@ function AppContent() {
         return;
       }
 
+      if (isSuperAdmin) {
+        if (mounted) {
+          setRoleLoading(false);
+          if (timeoutId) clearTimeout(timeoutId);
+        }
+        return;
+      }
+
       try {
         const { data: teamMemberData } = await supabase
           .from('team_members')
@@ -56,18 +64,9 @@ function AppContent() {
           return;
         }
 
-        const { data: managerData } = await supabase
-          .from('team_members')
-          .select('id')
-          .eq('manager_id', user.id)
-          .limit(1)
-          .maybeSingle();
-
-        if (mounted) {
-          setUserRole('manager');
-          setRoleLoading(false);
-          if (timeoutId) clearTimeout(timeoutId);
-        }
+        setUserRole('manager');
+        setRoleLoading(false);
+        if (timeoutId) clearTimeout(timeoutId);
       } catch (error) {
         console.error('[Role Detection] Error:', error instanceof Error ? error.message : 'Unknown error');
         if (mounted) {
@@ -91,15 +90,11 @@ function AppContent() {
       mounted = false;
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [user]);
+  }, [user, isSuperAdmin]);
 
   if (isSelfAssessment) {
     return (
-      <Suspense fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      }>
+      <Suspense fallback={<LoadingSpinner />}>
         <SelfAssessment />
       </Suspense>
     );
@@ -120,24 +115,15 @@ function AppContent() {
 
   if (!user) {
     return (
-      <Suspense fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      }>
+      <Suspense fallback={<LoadingSpinner />}>
         <Auth />
       </Suspense>
     );
   }
 
-  // Show team member portal if user is a team member
   if (userRole === 'team_member') {
     return (
-      <Suspense fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      }>
+      <Suspense fallback={<LoadingSpinner />}>
         <TeamMemberPortal />
       </Suspense>
     );
@@ -150,7 +136,7 @@ function AppContent() {
 
   const handleBackToDashboard = () => {
     setSelectedMemberId(null);
-    setCurrentView('dashboard');
+    setCurrentView('overview');
   };
 
   const handleViewSection = (section: 'growth' | 'kras' | 'checkins' | 'maturity' | 'profile') => {
@@ -164,9 +150,15 @@ function AppContent() {
 
   const handleDeleteCheckIn = async (checkInId: string) => {
     if (!confirm('Are you sure you want to delete this check-in?')) return;
-
     await supabase.from('performance_reviews').delete().eq('id', checkInId);
-    setCurrentView('dashboard');
+    setCurrentView('overview');
+  };
+
+  const handleViewChange = (view: string) => {
+    if (view !== currentView) {
+      setSelectedMemberId(null);
+    }
+    setCurrentView(view);
   };
 
   const LoadingFallback = () => (
@@ -178,6 +170,7 @@ function AppContent() {
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
+      case 'overview':
         return <Dashboard onSelectMember={handleSelectMember} onNavigate={setCurrentView} />;
       case 'member-dashboard':
         return selectedMemberId ? (
@@ -237,17 +230,21 @@ function AppContent() {
   };
 
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    }>
-      <Layout currentView={currentView} onViewChange={setCurrentView}>
+    <Suspense fallback={<LoadingSpinner />}>
+      <Layout currentView={currentView} onViewChange={handleViewChange}>
         <Suspense fallback={<LoadingFallback />}>
           {renderView()}
         </Suspense>
       </Layout>
     </Suspense>
+  );
+}
+
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
   );
 }
 

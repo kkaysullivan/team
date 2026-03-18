@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { CircleUser as UserCircle, Users, MessageSquare, ClipboardCheck, Plus, Pencil, Trash2, ArrowUpDown, ExternalLink, LayoutDashboard, Target, Layers, User, ChevronRight, TrendingUp, Activity, Clock, Calendar, BarChart3, FileText, AlertTriangle, CheckCircle2, TrendingDown } from 'lucide-react';
+import { CircleUser as UserCircle, Users, MessageSquare, ClipboardCheck, Plus, Pencil, Trash2, ArrowUpDown, ExternalLink, LayoutDashboard, Target, Layers, User, ChevronRight, TrendingUp, Activity, Clock, Calendar, BarChart3, FileText, AlertTriangle, CheckCircle2, TrendingDown, UserCog, Shield } from 'lucide-react';
+import AdminUsersPanel from './superadmin/AdminUsersPanel';
+import AdminMembersPanel from './superadmin/AdminMembersPanel';
 import type { Database } from '../lib/supabase';
 import CheckInForm from './CheckInForm';
 import MyTeam from './MyTeam';
@@ -56,7 +58,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps) {
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [members, setMembers] = useState<TeamMemberWithTrend[]>([]);
   const [checkIns, setCheckIns] = useState<CheckInWithMember[]>([]);
@@ -105,6 +107,16 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
       ],
     },
   ];
+
+  const adminNavSection: NavSection = {
+    label: 'Admin',
+    items: [
+      { id: 'admin-users', label: 'Admin Accounts', icon: UserCog },
+      { id: 'admin-members', label: 'All Team Members', icon: Shield },
+    ],
+  };
+
+  const allNavSections = isSuperAdmin ? [...navSections, adminNavSection] : navSections;
 
   useEffect(() => {
     if (user) {
@@ -805,6 +817,10 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
         return <AdminMaturityModels />;
       case 'profile':
         return <AdminProfile />;
+      case 'admin-users':
+        return <AdminUsersPanel />;
+      case 'admin-members':
+        return <AdminMembersPanel />;
       default:
         return renderOverviewContent();
     }
@@ -824,7 +840,7 @@ export default function Dashboard({ onSelectMember, onNavigate }: DashboardProps
         <aside className="w-64 flex-shrink-0">
           <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
             <nav className="p-2">
-              {navSections.map((section, sectionIdx) => (
+              {allNavSections.map((section, sectionIdx) => (
                 <div key={section.label} className={sectionIdx > 0 ? 'mt-6' : ''}>
                   <h3 className="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     {section.label}

@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isSuperAdmin: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -15,6 +16,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  const checkSuperAdmin = async (userId: string) => {
+    const { data } = await supabase
+      .from('super_admins')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+    setIsSuperAdmin(!!data);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -30,6 +41,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (mounted) {
           setUser(session?.user ?? null);
+          if (session?.user) {
+            await checkSuperAdmin(session.user.id);
+          }
           setLoading(false);
           if (timeoutId) clearTimeout(timeoutId);
         }
@@ -55,6 +69,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (mounted) {
         setUser(session?.user ?? null);
+        if (session?.user) {
+          (async () => {
+            await checkSuperAdmin(session.user.id);
+          })();
+        } else {
+          setIsSuperAdmin(false);
+        }
       }
     });
 
@@ -77,10 +98,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    setIsSuperAdmin(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, isSuperAdmin, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
